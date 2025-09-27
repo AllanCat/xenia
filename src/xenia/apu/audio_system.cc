@@ -194,14 +194,21 @@ X_STATUS AudioSystem::RegisterClient(uint32_t callback, uint32_t callback_arg,
   AudioDriver* driver;
   auto result = CreateDriver(index, client_semaphore, &driver);
   if (XFAILED(result)) {
+    XELOGE("AudioSystem::RegisterClient: CreateDriver failed for index={}",
+           index);
     return result;
   }
   assert_not_null(driver);
+  XELOGI(
+      "AudioSystem::RegisterClient: driver created for index={}, driver={:p}",
+      index, (void*)driver);
 
   uint32_t ptr = memory()->SystemHeapAlloc(0x4);
   xe::store_and_swap<uint32_t>(memory()->TranslateVirtual(ptr), callback_arg);
 
   clients_[index] = {driver, callback, callback_arg, ptr, true};
+  XELOGI("AudioSystem::RegisterClient: client {} registered successfully",
+         index);
 
   if (out_index) {
     *out_index = index;
@@ -215,7 +222,15 @@ void AudioSystem::SubmitFrame(size_t index, float* samples) {
 
   auto global_lock = global_critical_region_.Acquire();
   assert_true(index < kMaximumClientCount);
-  assert_true(clients_[index].driver != NULL);
+  if (index >= kMaximumClientCount || !clients_[index].in_use ||
+      !clients_[index].driver) {
+    XELOGW(
+        "SubmitFrame called for invalid/unregistered client index {} "
+        "(in_use={}, driver={:p})",
+        index, index < kMaximumClientCount ? clients_[index].in_use : false,
+        index < kMaximumClientCount ? (void*)clients_[index].driver : nullptr);
+    return;
+  }
   (clients_[index].driver)->SubmitFrame(samples);
 }
 

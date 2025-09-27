@@ -101,6 +101,7 @@ project("xenia-app")
 
   filter("platforms:Linux")
     links({
+      "xenia-apu-alsa",
       "X11",
       "xcb",
       "X11-xcb",
