@@ -27,7 +27,7 @@ std::string VulkanGraphicsSystem::name() const {
   if (vulkan_command_processor != nullptr) {
     return vulkan_command_processor->GetWindowTitleText();
   }
-  return "Vulkan - HEAVILY INCOMPLETE, early development";
+  return "Vulkan";
 }
 
 X_STATUS VulkanGraphicsSystem::Setup(cpu::Processor* processor,

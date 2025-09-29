@@ -36,6 +36,8 @@ class AudioSystem {
 
   virtual ~AudioSystem();
 
+  virtual std::string name() const = 0;
+
   Memory* memory() const { return memory_; }
   cpu::Processor* processor() const { return processor_; }
   XmaDecoder* xma_decoder() const { return xma_decoder_.get(); }

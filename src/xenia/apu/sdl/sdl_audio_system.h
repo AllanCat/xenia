@@ -25,6 +25,8 @@ class SDLAudioSystem : public AudioSystem {
 
   static std::unique_ptr<AudioSystem> Create(cpu::Processor* processor);
 
+  std::string name() const override { return "SDL"; }
+
   X_RESULT CreateDriver(size_t index, xe::threading::Semaphore* semaphore,
                         AudioDriver** out_driver) override;
   AudioDriver* CreateDriver(xe::threading::Semaphore* semaphore,

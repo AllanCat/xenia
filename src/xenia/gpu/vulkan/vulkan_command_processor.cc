@@ -12,11 +12,13 @@
 #include <cstdint>
 #include <cstring>
 
+#include "xenia/apu/audio_system.h"
 #include "xenia/base/assert.h"
 #include "xenia/base/byte_order.h"
 #include "xenia/base/logging.h"
 #include "xenia/base/math.h"
 #include "xenia/base/profiling.h"
+#include "xenia/emulator.h"
 #include "xenia/gpu/draw_util.h"
 #include "xenia/gpu/gpu_flags.h"
 #include "xenia/gpu/packet_disassembler.h"
@@ -130,7 +132,10 @@ std::string VulkanCommandProcessor::GetWindowTitleText() const {
       title << ' ' << draw_resolution_scale_x << 'x' << draw_resolution_scale_y;
     }
   }
-  title << " - HEAVILY INCOMPLETE, early development";
+  auto* audio_system = kernel_state_->emulator()->audio_system();
+  if (audio_system) {
+    title << " - " << audio_system->name();
+  }
   return title.str();
 }
 

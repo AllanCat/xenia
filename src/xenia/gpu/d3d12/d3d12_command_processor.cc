@@ -9,12 +9,14 @@
 
 #include "xenia/gpu/d3d12/d3d12_command_processor.h"
 #include <cstring>
+#include "xenia/apu/audio_system.h"
 #include "xenia/base/assert.h"
 #include "xenia/base/byte_order.h"
 #include "xenia/base/cvar.h"
 #include "xenia/base/logging.h"
 #include "xenia/base/math.h"
 #include "xenia/base/profiling.h"
+#include "xenia/emulator.h"
 #include "xenia/gpu/d3d12/d3d12_graphics_system.h"
 #include "xenia/gpu/d3d12/d3d12_shader.h"
 #include "xenia/gpu/draw_util.h"
@@ -22,6 +24,7 @@
 #include "xenia/gpu/packet_disassembler.h"
 #include "xenia/gpu/registers.h"
 #include "xenia/gpu/xenos.h"
+#include "xenia/kernel/kernel_state.h"
 #include "xenia/ui/d3d12/d3d12_presenter.h"
 #include "xenia/ui/d3d12/d3d12_util.h"
 
@@ -794,6 +797,10 @@ std::string D3D12CommandProcessor::GetWindowTitleText() const {
     if (draw_resolution_scale_x > 1 || draw_resolution_scale_y > 1) {
       title << ' ' << draw_resolution_scale_x << 'x' << draw_resolution_scale_y;
     }
+  }
+  auto* audio_system = kernel_state_->emulator()->audio_system();
+  if (audio_system) {
+    title << " - " << audio_system->name();
   }
   return title.str();
 }
