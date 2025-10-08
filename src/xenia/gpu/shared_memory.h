@@ -105,7 +105,7 @@ class SharedMemory {
  protected:
   SharedMemory(Memory& memory);
   // Call in implementation-specific initialization.
-  void InitializeCommon();
+  bool InitializeCommon();
   void InitializeSparseHostGpuMemory(uint32_t granularity_log2);
   // Call last in implementation-specific shutdown, also callable from the
   // destructor.

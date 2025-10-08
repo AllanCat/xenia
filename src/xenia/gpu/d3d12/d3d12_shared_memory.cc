@@ -34,7 +34,9 @@ D3D12SharedMemory::D3D12SharedMemory(D3D12CommandProcessor& command_processor,
 D3D12SharedMemory::~D3D12SharedMemory() { Shutdown(true); }
 
 bool D3D12SharedMemory::Initialize() {
-  InitializeCommon();
+  if (!InitializeCommon()) {
+    return false;
+  }
 
   const ui::d3d12::D3D12Provider& provider =
       command_processor_.GetD3D12Provider();

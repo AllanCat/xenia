@@ -23,7 +23,7 @@ SharedMemory::SharedMemory(Memory& memory) : memory_(memory) {
 
 SharedMemory::~SharedMemory() { ShutdownCommon(); }
 
-void SharedMemory::InitializeCommon() {
+bool SharedMemory::InitializeCommon() {
   size_t num_system_page_flags_entries =
       ((kBufferSize >> page_size_log2_) + 63) / 64;
   num_system_page_flags_ = static_cast<uint32_t>(num_system_page_flags_entries);
@@ -35,6 +35,11 @@ void SharedMemory::InitializeCommon() {
   uint64_t* system_page_flags_base = (uint64_t*)memory::AllocFixed(
       nullptr, num_system_page_flags_ * 3 * sizeof(uint64_t),
       memory::AllocationType::kReserveCommit, memory::PageAccess::kReadWrite);
+
+  if (!system_page_flags_base) {
+    XELOGE("SharedMemory: Failed to allocate system page flags");
+    return false;
+  }
 
   system_page_flags_valid_ = system_page_flags_base,
   system_page_flags_valid_and_gpu_resolved_ =
@@ -49,6 +54,7 @@ void SharedMemory::InitializeCommon() {
   memory_invalidation_callback_handle_ =
       memory_.RegisterPhysicalMemoryInvalidationCallback(
           MemoryInvalidationCallbackThunk, this);
+  return true;
 }
 
 void SharedMemory::InitializeSparseHostGpuMemory(uint32_t granularity_log2) {
