@@ -10,6 +10,7 @@
 #include "xenia/gpu/spirv_builder.h"
 
 #include "xenia/base/assert.h"
+#include "xenia/gpu/spirv_compatibility.h"
 
 namespace xe {
 namespace gpu {
@@ -99,7 +100,8 @@ spv::Id SpirvBuilder::createTriBuiltinCall(spv::Id result_type,
   return result;
 }
 
-SpirvBuilder::IfBuilder::IfBuilder(spv::Id condition, unsigned int control,
+SpirvBuilder::IfBuilder::IfBuilder(spv::Id condition,
+                                   spv::SelectionControlMask control,
                                    SpirvBuilder& builder,
                                    unsigned int thenWeight,
                                    unsigned int elseWeight)
@@ -199,9 +201,9 @@ spv::Id SpirvBuilder::IfBuilder::createMergePhi(spv::Id then_variable,
                               getElsePhiParent());
 }
 
-SpirvBuilder::SwitchBuilder::SwitchBuilder(spv::Id selector,
-                                           unsigned int selection_control,
-                                           SpirvBuilder& builder)
+SpirvBuilder::SwitchBuilder::SwitchBuilder(
+    spv::Id selector, spv::SelectionControlMask selection_control,
+    SpirvBuilder& builder)
     : builder_(builder),
       selector_(selector),
       selection_control_(selection_control),

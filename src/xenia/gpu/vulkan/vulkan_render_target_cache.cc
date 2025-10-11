@@ -21,6 +21,7 @@
 #include "xenia/gpu/draw_util.h"
 #include "xenia/gpu/registers.h"
 #include "xenia/gpu/spirv_builder.h"
+#include "xenia/gpu/spirv_compatibility.h"
 #include "xenia/gpu/spirv_shader_translator.h"
 #include "xenia/gpu/texture_cache.h"
 #include "xenia/gpu/vulkan/deferred_command_buffer.h"
@@ -2288,8 +2289,7 @@ VkShaderModule VulkanRenderTargetCache::GetTransferShader(
 
   std::vector<spv::Id> id_vector_temp;
   std::vector<unsigned int> uint_vector_temp;
-
-  SpirvBuilder builder(spv::Spv_1_0,
+  SpirvBuilder builder(spv::Spv_1_5,
                        (SpirvShaderTranslator::kSpirvMagicToolId << 16) | 1,
                        nullptr);
   spv::Id ext_inst_glsl_std_450 = builder.import("GLSL.std.450");
@@ -2405,7 +2405,7 @@ VkShaderModule VulkanRenderTargetCache::GetTransferShader(
           builder.createVariable(spv::NoPrecision, spv::StorageClassOutput,
                                  type_float, "gl_FragDepth");
       builder.addDecoration(output_fragment_depth, spv::DecorationBuiltIn,
-                            spv::BuiltInFragDepth);
+                            static_cast<int>(spv::BuiltIn::FragDepth));
       main_interface.push_back(output_fragment_depth);
       if (shader_uses_stencil_reference_output) {
         builder.addExtension("SPV_EXT_shader_stencil_export");
@@ -2413,9 +2413,9 @@ VkShaderModule VulkanRenderTargetCache::GetTransferShader(
         output_fragment_stencil_ref =
             builder.createVariable(spv::NoPrecision, spv::StorageClassOutput,
                                    type_int, "gl_FragStencilRefARB");
-        builder.addDecoration(output_fragment_stencil_ref,
-                              spv::DecorationBuiltIn,
-                              spv::BuiltInFragStencilRefEXT);
+        builder.addDecoration(
+            output_fragment_stencil_ref, spv::DecorationBuiltIn,
+            static_cast<int>(spv::BuiltIn::FragStencilRefEXT));
         main_interface.push_back(output_fragment_stencil_ref);
       }
       break;
@@ -2603,7 +2603,7 @@ VkShaderModule VulkanRenderTargetCache::GetTransferShader(
   spv::Id input_fragment_coord = builder.createVariable(
       spv::NoPrecision, spv::StorageClassInput, type_float4, "gl_FragCoord");
   builder.addDecoration(input_fragment_coord, spv::DecorationBuiltIn,
-                        spv::BuiltInFragCoord);
+                        static_cast<int>(spv::BuiltIn::FragCoord));
   main_interface.push_back(input_fragment_coord);
   spv::Id input_sample_id = spv::NoResult;
   spv::Id spec_const_sample_id = spv::NoResult;
@@ -2615,7 +2615,7 @@ VkShaderModule VulkanRenderTargetCache::GetTransferShader(
           spv::NoPrecision, spv::StorageClassInput, type_int, "gl_SampleID");
       builder.addDecoration(input_sample_id, spv::DecorationFlat);
       builder.addDecoration(input_sample_id, spv::DecorationBuiltIn,
-                            spv::BuiltInSampleId);
+                            static_cast<int>(spv::BuiltIn::SampleId));
       main_interface.push_back(input_sample_id);
     } else {
       // One sample per draw, with different sample masks.
@@ -5550,7 +5550,7 @@ VkPipeline VulkanRenderTargetCache::GetDumpPipeline(DumpPipelineKey key) {
 
   std::vector<spv::Id> id_vector_temp;
 
-  SpirvBuilder builder(spv::Spv_1_0,
+  SpirvBuilder builder(spv::Spv_1_5,
                        (SpirvShaderTranslator::kSpirvMagicToolId << 16) | 1,
                        nullptr);
   spv::Id ext_inst_glsl_std_450 = builder.import("GLSL.std.450");
@@ -5649,7 +5649,7 @@ VkPipeline VulkanRenderTargetCache::GetDumpPipeline(DumpPipelineKey key) {
       builder.createVariable(spv::NoPrecision, spv::StorageClassInput,
                              type_uint3, "gl_GlobalInvocationID");
   builder.addDecoration(input_global_invocation_id, spv::DecorationBuiltIn,
-                        spv::BuiltInGlobalInvocationId);
+                        static_cast<int>(spv::BuiltIn::GlobalInvocationId));
 
   // Begin the main function.
   std::vector<spv::Id> main_param_types;

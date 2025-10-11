@@ -12,6 +12,7 @@
 #include "third_party/glslang/SPIRV/GLSL.std.450.h"
 #include "xenia/base/assert.h"
 #include "xenia/base/math.h"
+#include "xenia/gpu/spirv_compatibility.h"
 #include "xenia/gpu/ucode.h"
 
 namespace xe {

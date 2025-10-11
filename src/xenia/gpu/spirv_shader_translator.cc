@@ -17,6 +17,7 @@
 #include "xenia/base/assert.h"
 #include "xenia/base/math.h"
 #include "xenia/base/string_buffer.h"
+#include "xenia/gpu/spirv_compatibility.h"
 #include "xenia/gpu/spirv_shader.h"
 
 namespace xe {
@@ -1193,13 +1194,13 @@ void SpirvShaderTranslator::StartVertexOrTessEvalShaderBeforeMain() {
     input_primitive_id_ = builder_->createVariable(
         spv::NoPrecision, spv::StorageClassInput, type_int_, "gl_PrimitiveID");
     builder_->addDecoration(input_primitive_id_, spv::DecorationBuiltIn,
-                            spv::BuiltInPrimitiveId);
+                            static_cast<int>(spv::BuiltIn::PrimitiveId));
     main_interface_.push_back(input_primitive_id_);
   } else {
     input_vertex_index_ = builder_->createVariable(
         spv::NoPrecision, spv::StorageClassInput, type_int_, "gl_VertexIndex");
     builder_->addDecoration(input_vertex_index_, spv::DecorationBuiltIn,
-                            spv::BuiltInVertexIndex);
+                            static_cast<int>(spv::BuiltIn::VertexIndex));
     main_interface_.push_back(input_vertex_index_);
   }
 
@@ -1262,9 +1263,9 @@ void SpirvShaderTranslator::StartVertexOrTessEvalShaderBeforeMain() {
       builder_->makeStructType(struct_per_vertex_members, "gl_PerVertex");
   builder_->addMemberName(type_struct_per_vertex,
                           kOutputPerVertexMemberPosition, "gl_Position");
-  builder_->addMemberDecoration(type_struct_per_vertex,
-                                kOutputPerVertexMemberPosition,
-                                spv::DecorationBuiltIn, spv::BuiltInPosition);
+  builder_->addMemberDecoration(
+      type_struct_per_vertex, kOutputPerVertexMemberPosition,
+      spv::DecorationBuiltIn, static_cast<int>(spv::BuiltIn::Position));
   builder_->addDecoration(type_struct_per_vertex, spv::DecorationBlock);
   output_per_vertex_ = builder_->createVariable(
       spv::NoPrecision, spv::StorageClassOutput, type_struct_per_vertex, "");
@@ -1861,7 +1862,7 @@ void SpirvShaderTranslator::StartFragmentShaderBeforeMain() {
     input_fragment_coordinates_ = builder_->createVariable(
         spv::NoPrecision, spv::StorageClassInput, type_float4_, "gl_FragCoord");
     builder_->addDecoration(input_fragment_coordinates_, spv::DecorationBuiltIn,
-                            spv::BuiltInFragCoord);
+                            static_cast<int>(spv::BuiltIn::FragCoord));
     main_interface_.push_back(input_fragment_coordinates_);
   }
 
@@ -1872,7 +1873,7 @@ void SpirvShaderTranslator::StartFragmentShaderBeforeMain() {
     input_front_facing_ = builder_->createVariable(
         spv::NoPrecision, spv::StorageClassInput, type_bool_, "gl_FrontFacing");
     builder_->addDecoration(input_front_facing_, spv::DecorationBuiltIn,
-                            spv::BuiltInFrontFacing);
+                            static_cast<int>(spv::BuiltIn::FrontFacing));
     main_interface_.push_back(input_front_facing_);
   }
 
@@ -1886,7 +1887,7 @@ void SpirvShaderTranslator::StartFragmentShaderBeforeMain() {
         "gl_SampleMaskIn");
     builder_->addDecoration(input_sample_mask_, spv::DecorationFlat);
     builder_->addDecoration(input_sample_mask_, spv::DecorationBuiltIn,
-                            spv::BuiltInSampleMask);
+                            static_cast<int>(spv::BuiltIn::SampleMask));
     main_interface_.push_back(input_sample_mask_);
   }
 

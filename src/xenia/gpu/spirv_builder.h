@@ -94,8 +94,9 @@ class SpirvBuilder : public spv::Builder {
   // additions over SpvBuilder::If.
   class IfBuilder {
    public:
-    IfBuilder(spv::Id condition, unsigned int control, SpirvBuilder& builder,
-              unsigned int thenWeight = 0, unsigned int elseWeight = 0);
+    IfBuilder(spv::Id condition, spv::SelectionControlMask control,
+              SpirvBuilder& builder, unsigned int thenWeight = 0,
+              unsigned int elseWeight = 0);
 
     ~IfBuilder() {
 #ifndef NDEBUG
@@ -125,7 +126,7 @@ class SpirvBuilder : public spv::Builder {
 
     SpirvBuilder& builder;
     spv::Id condition;
-    unsigned int control;
+    spv::SelectionControlMask control;
     unsigned int thenWeight;
     unsigned int elseWeight;
 
@@ -148,7 +149,7 @@ class SpirvBuilder : public spv::Builder {
   // block) compared to makeSwitch.
   class SwitchBuilder {
    public:
-    SwitchBuilder(spv::Id selector, unsigned int selection_control,
+    SwitchBuilder(spv::Id selector, spv::SelectionControlMask selection_control,
                   SpirvBuilder& builder);
     ~SwitchBuilder() { assert_true(current_branch_ == Branch::kMerge); }
 
@@ -173,7 +174,7 @@ class SpirvBuilder : public spv::Builder {
 
     SpirvBuilder& builder_;
     spv::Id selector_;
-    unsigned int selection_control_;
+    spv::SelectionControlMask selection_control_;
 
     spv::Function& function_;
 

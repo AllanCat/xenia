@@ -23,6 +23,7 @@
 #include "xenia/gpu/register_file.h"
 #include "xenia/gpu/registers.h"
 #include "xenia/gpu/spirv_builder.h"
+#include "xenia/gpu/spirv_compatibility.h"
 #include "xenia/gpu/spirv_shader_translator.h"
 #include "xenia/gpu/vulkan/vulkan_command_processor.h"
 #include "xenia/gpu/vulkan/vulkan_shader.h"
@@ -837,7 +838,7 @@ VkShaderModule VulkanPipelineCache::GetGeometryShader(GeometryShaderKey key) {
       (key.user_clip_plane_cull ? key.user_clip_plane_count : 0) +
       key.has_vertex_kill_and;
 
-  SpirvBuilder builder(spv::Spv_1_0,
+  SpirvBuilder builder(spv::Spv_1_5,
                        (SpirvShaderTranslator::kSpirvMagicToolId << 16) | 1,
                        nullptr);
   spv::Id ext_inst_glsl_std_450 = builder.import("GLSL.std.450");
@@ -955,16 +956,16 @@ VkShaderModule VulkanPipelineCache::GetGeometryShader(GeometryShaderKey key) {
       builder.makeStructType(id_vector_temp, "gl_PerVertex");
   builder.addMemberName(type_struct_in_gl_per_vertex,
                         member_in_gl_per_vertex_position, "gl_Position");
-  builder.addMemberDecoration(type_struct_in_gl_per_vertex,
-                              member_in_gl_per_vertex_position,
-                              spv::DecorationBuiltIn, spv::BuiltInPosition);
+  builder.addMemberDecoration(
+      type_struct_in_gl_per_vertex, member_in_gl_per_vertex_position,
+      spv::DecorationBuiltIn, static_cast<int>(spv::BuiltIn::Position));
   if (clip_distance_count) {
     builder.addMemberName(type_struct_in_gl_per_vertex,
                           member_in_gl_per_vertex_clip_distance,
                           "gl_ClipDistance");
     builder.addMemberDecoration(
         type_struct_in_gl_per_vertex, member_in_gl_per_vertex_clip_distance,
-        spv::DecorationBuiltIn, spv::BuiltInClipDistance);
+        spv::DecorationBuiltIn, static_cast<int>(spv::BuiltIn::ClipDistance));
   }
   if (cull_distance_count) {
     builder.addMemberName(type_struct_in_gl_per_vertex,
@@ -972,7 +973,7 @@ VkShaderModule VulkanPipelineCache::GetGeometryShader(GeometryShaderKey key) {
                           "gl_CullDistance");
     builder.addMemberDecoration(
         type_struct_in_gl_per_vertex, member_in_gl_per_vertex_cull_distance,
-        spv::DecorationBuiltIn, spv::BuiltInCullDistance);
+        spv::DecorationBuiltIn, static_cast<int>(spv::BuiltIn::CullDistance));
   }
   builder.addDecoration(type_struct_in_gl_per_vertex, spv::DecorationBlock);
   spv::Id type_array_in_gl_per_vertex = builder.makeArrayType(
@@ -1063,16 +1064,16 @@ VkShaderModule VulkanPipelineCache::GetGeometryShader(GeometryShaderKey key) {
       builder.makeStructType(id_vector_temp, "gl_PerVertex");
   builder.addMemberName(type_struct_out_gl_per_vertex,
                         member_out_gl_per_vertex_position, "gl_Position");
-  builder.addMemberDecoration(type_struct_out_gl_per_vertex,
-                              member_out_gl_per_vertex_position,
-                              spv::DecorationBuiltIn, spv::BuiltInPosition);
+  builder.addMemberDecoration(
+      type_struct_out_gl_per_vertex, member_out_gl_per_vertex_position,
+      spv::DecorationBuiltIn, static_cast<int>(spv::BuiltIn::Position));
   if (clip_distance_count) {
     builder.addMemberName(type_struct_out_gl_per_vertex,
                           member_out_gl_per_vertex_clip_distance,
                           "gl_ClipDistance");
     builder.addMemberDecoration(
         type_struct_out_gl_per_vertex, member_out_gl_per_vertex_clip_distance,
-        spv::DecorationBuiltIn, spv::BuiltInClipDistance);
+        spv::DecorationBuiltIn, static_cast<int>(spv::BuiltIn::ClipDistance));
   }
   builder.addDecoration(type_struct_out_gl_per_vertex, spv::DecorationBlock);
   spv::Id out_gl_per_vertex =

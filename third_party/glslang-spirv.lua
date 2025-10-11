@@ -4,34 +4,17 @@ project("glslang-spirv")
   kind("StaticLib")
   language("C++")
 
+  includedirs({
+    "glslang",
+  })
+
   files({
-    "glslang/SPIRV/bitutils.h",
-    "glslang/SPIRV/disassemble.cpp",
-    "glslang/SPIRV/disassemble.h",
-    "glslang/SPIRV/doc.cpp",
-    "glslang/SPIRV/doc.h",
-    "glslang/SPIRV/GLSL.ext.AMD.h",
-    "glslang/SPIRV/GLSL.ext.EXT.h",
-    "glslang/SPIRV/GLSL.ext.KHR.h",
-    "glslang/SPIRV/GLSL.ext.NV.h",
-    "glslang/SPIRV/GLSL.std.450.h",
-    -- Disabled because GLSL is not used.
-    -- "glslang/SPIRV/GlslangToSpv.cpp",
-    -- "glslang/SPIRV/GlslangToSpv.h",
-    "glslang/SPIRV/hex_float.h",
-    "glslang/SPIRV/InReadableOrder.cpp",
-    "glslang/SPIRV/Logger.cpp",
-    "glslang/SPIRV/Logger.h",
-    "glslang/SPIRV/NonSemanticDebugPrintf.h",
-    "glslang/SPIRV/spirv.hpp",
-    "glslang/SPIRV/SpvBuilder.cpp",
-    "glslang/SPIRV/SpvBuilder.h",
-    "glslang/SPIRV/spvIR.h",
-    -- Disabled because of spirv-tools dependency.
-    -- "glslang/SPIRV/SpvPostProcess.cpp",
-    "glslang/SPIRV/SPVRemapper.cpp",
-    "glslang/SPIRV/SPVRemapper.h",
-    -- Disabled because of spirv-tools dependency.
-    -- "glslang/SPIRV/SpvTools.cpp",
-    -- "glslang/SPIRV/SpvTools.h",
+    "glslang/SPIRV/*.cpp",
+    "glslang/SPIRV/*.h",
+    "glslang/SPIRV/*.hpp11",
+    "glslang/glslang/Include/visibility.h",
+  })
+
+  removefiles({
+    "glslang/SPIRV/GlslangToSpv.cpp",
   })
