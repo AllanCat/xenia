@@ -1675,7 +1675,7 @@ int InstrEmit_vsubcuw(PPCHIRBuilder& f, const InstrData& i) {
   Value* borrow =
       f.VectorShr(underflow, f.LoadConstantVec128(vec128i(31)), INT32_TYPE);
   f.StoreVR(i.VX.VD, borrow);
-  return 1;
+  return 0;
 }
 
 int InstrEmit_vsubfp_(PPCHIRBuilder& f, uint32_t vd, uint32_t va, uint32_t vb) {
