@@ -85,8 +85,13 @@ Symbol::Status TestModule::DeclareFunction(uint32_t address,
     // Reset() all caching when we leave.
     xe::make_reset_scope(compiler_);
     xe::make_reset_scope(assembler_);
+    xe::make_reset_scope(builder_);
+
+    // Set the HIRBuilder as current for this thread
+    builder_->MakeCurrent();
 
     if (!generate_(*builder_.get())) {
+      builder_->RemoveCurrent();
       function->set_status(Symbol::Status::kFailed);
       return Symbol::Status::kFailed;
     }
@@ -96,6 +101,9 @@ Symbol::Status TestModule::DeclareFunction(uint32_t address,
 
     // Assemble the function.
     assembler_->Assemble(function, builder_.get(), 0, nullptr);
+
+    // Remove the HIRBuilder as current for this thread
+    builder_->RemoveCurrent();
 
     status = Symbol::Status::kDefined;
     function->set_status(status);

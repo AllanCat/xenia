@@ -539,7 +539,7 @@ def run_premake(target_os, action, cc=None):
         os.path.join("tools", "build", "premake.py"),
         "--file=premake5.lua",
         f"--os={target_os}",
-        #"--test-suite-mode=combined",
+        "--test-suite-mode=combined",
         "--verbose",
         action,
     ]
@@ -1218,12 +1218,20 @@ class TestCommand(BaseBuildCommand):
                 print_error(f"Unable to find {test_targets[i]} - build it.")
                 return 1
 
+        # Prepare environment with Qt bin directory in PATH if available
+        test_env = dict(os.environ)
+        qt_dir = os.environ.get("QT_DIR")
+        if qt_dir and sys.platform == "win32":
+            qt_bin = os.path.join(qt_dir, "bin")
+            if os.path.exists(qt_bin):
+                test_env["PATH"] = f"{qt_bin}{os.pathsep}{test_env['PATH']}"
+                print(f"- Qt bin directory added to PATH: {qt_bin}\n")
+
         # Run tests.
         any_failed = False
         for test_executable in test_executables:
             print(f"- {test_executable}")
-            result = shell_call([test_executable] + pass_args,
-                                throw_on_error=False)
+            result = subprocess.call([test_executable] + pass_args, env=test_env)
             if result:
                 any_failed = True
                 if args["continue"]:

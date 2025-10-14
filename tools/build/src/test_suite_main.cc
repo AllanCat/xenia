@@ -15,6 +15,7 @@
 
 #include "xenia/base/console_app_main.h"
 #include "xenia/base/cvar.h"
+#include "xenia/base/platform.h"
 
 #define CATCH_CONFIG_RUNNER
 #include "third_party/catch/single_include/catch2/catch.hpp"
