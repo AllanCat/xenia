@@ -1111,6 +1111,7 @@ struct VECTOR_SHL_V128
 
     e.L(looper);
     e.movzx(e.ecx, e.word[e.rsp + stack_offset_src2 + e.rdx]);
+    e.and_(e.cl, 0xF);  // Mask shift count to 4 bits (0-15) for word shifts
 
     e.shl(e.word[e.rsp + stack_offset_src1 + e.rdx], e.cl);
 
@@ -1205,6 +1206,7 @@ struct VECTOR_SHL_V128
 
       e.L(looper);
       e.mov(e.ecx, e.dword[e.rsp + stack_offset_src2 + e.rdx]);
+      e.and_(e.cl, 0x1F);  // Mask shift count to 5 bits (0-31) for dword shifts
 
       e.shl(e.dword[e.rsp + stack_offset_src1 + e.rdx], e.cl);
 
@@ -1313,6 +1315,7 @@ struct VECTOR_SHR_V128
     // movzx is to eliminate any possible dep on previous value of rcx at start
     // of loop
     e.movzx(e.ecx, e.byte[e.rsp + stack_offset_src2 + e.rdx]);
+    e.and_(e.cl, 7);  // Mask shift count to 3 bits (0-7) for byte shifts
     // maybe using a memory operand as the left side isn't the best idea lol,
     // still better than callnativesafe though agners docs have no timing info
     // on shx [m], cl so shrug
@@ -1392,7 +1395,7 @@ struct VECTOR_SHR_V128
 
     e.L(looper);
     e.movzx(e.ecx, e.word[e.rsp + stack_offset_src2 + e.rdx]);
-
+    e.and_(e.cl, 0xF);  // Mask shift count to 4 bits (0-15) for word shifts
     e.shr(e.word[e.rsp + stack_offset_src1 + e.rdx], e.cl);
 
     e.add(e.edx, 2);
@@ -1492,6 +1495,7 @@ struct VECTOR_SHR_V128
 
       e.L(looper);
       e.mov(e.ecx, e.dword[e.rsp + stack_offset_src2 + e.rdx]);
+      e.and_(e.cl, 0x1F);  // Mask shift count to 5 bits (0-31) for dword shifts
       e.shr(e.dword[e.rsp + stack_offset_src1 + e.rdx], e.cl);
 
       e.add(e.edx, 4);
@@ -1612,6 +1616,7 @@ struct VECTOR_SHA_V128
     // movzx is to eliminate any possible dep on previous value of rcx at start
     // of loop
     e.movzx(e.ecx, e.byte[e.rsp + stack_offset_src2 + e.rdx]);
+    e.and_(e.cl, 7);  // Mask shift count to 3 bits (0-7) for byte shifts
     // maybe using a memory operand as the left side isn't the best idea lol,
     // still better than callnativesafe though agners docs have no timing info
     // on shx [m], cl so shrug
@@ -1691,7 +1696,7 @@ struct VECTOR_SHA_V128
 
     e.L(looper);
     e.movzx(e.ecx, e.word[e.rsp + stack_offset_src2 + e.rdx]);
-
+    e.and_(e.cl, 0xF);  // Mask shift count to 4 bits (0-15) for word shifts
     e.sar(e.word[e.rsp + stack_offset_src1 + e.rdx], e.cl);
 
     e.add(e.edx, 2);
@@ -1775,6 +1780,7 @@ struct VECTOR_SHA_V128
 
       e.L(looper);
       e.mov(e.ecx, e.dword[e.rsp + stack_offset_src2 + e.rdx]);
+      e.and_(e.cl, 0x1F);  // Mask shift count to 5 bits (0-31) for dword shifts
       e.sar(e.dword[e.rsp + stack_offset_src1 + e.rdx], e.cl);
 
       e.add(e.edx, 4);
