@@ -2744,11 +2744,15 @@ struct PACK : Sequence<PACK, I<OPCODE_PACK, V128Op, V128Op, V128Op>> {
     // http://blogs.msdn.com/b/chuckw/archive/2012/09/11/directxmath-f16c-and-fma.aspx
     // dest = [(src1.x | src1.y), 0, 0, 0]
 
-    if (i.src1.is_constant) {
-      e.lea(e.GetNativeParam(0), e.StashConstantXmm(0, i.src1.constant()));
-    } else {
-      e.lea(e.GetNativeParam(0), e.StashXmm(0, i.src1));
-    }
+    auto src1 = GetInputRegOrConstant(e, i.src1, e.xmm3);
+
+#if XE_PLATFORM_WIN32
+    // Windows x64 ABI: __m128 is passed by implicit pointer
+    e.lea(e.GetNativeParam(0), e.StashXmm(0, src1));
+#else
+    // Linux/Mac System V ABI: __m128 passed in xmm0, return in xmm0
+    e.vmovaps(e.xmm0, src1);
+#endif
     e.CallNativeSafe(reinterpret_cast<void*>(EmulateFLOAT16_2));
     e.vmovaps(i.dest, e.xmm0);
   }
@@ -2922,26 +2926,36 @@ struct PACK : Sequence<PACK, I<OPCODE_PACK, V128Op, V128Op, V128Op>> {
       if (IsPackOutUnsigned(flags)) {
         if (IsPackOutSaturate(flags)) {
           // unsigned -> unsigned + saturate
-          if (i.src1.is_constant) {
-            e.lea(e.GetNativeParam(0),
-                  e.StashConstantXmm(0, i.src1.constant()));
-          } else {
-            e.lea(e.GetNativeParam(0), e.StashXmm(0, i.src1));
-          }
-          if (i.src2.is_constant) {
-            e.lea(e.GetNativeParam(1),
-                  e.StashConstantXmm(1, i.src2.constant()));
-          } else {
-            e.lea(e.GetNativeParam(1), e.StashXmm(1, i.src2));
-          }
+          auto src1 = GetInputRegOrConstant(e, i.src1, e.xmm3);
+          auto src2 = GetInputRegOrConstant(e, i.src2, e.xmm4);
+
+#if XE_PLATFORM_WIN32
+          // Windows x64 ABI: __m128i is passed by implicit pointer
+          e.lea(e.GetNativeParam(0), e.StashXmm(0, src1));
+          e.lea(e.GetNativeParam(1), e.StashXmm(1, src2));
+#else
+          // Linux/Mac System V ABI: __m128i passed in xmm0/xmm1, return in xmm0
+          e.vmovaps(e.xmm0, src1);
+          e.vmovaps(e.xmm1, src2);
+#endif
           e.CallNativeSafe(
               reinterpret_cast<void*>(EmulatePack8_IN_16_UN_UN_SAT));
           e.vmovaps(i.dest, e.xmm0);
           e.vpshufb(i.dest, i.dest, e.GetXmmConstPtr(XMMByteOrderMask));
         } else {
           // unsigned -> unsigned
-          e.lea(e.GetNativeParam(1), e.StashXmm(1, i.src2));
-          e.lea(e.GetNativeParam(0), e.StashXmm(0, i.src1));
+          auto src1 = GetInputRegOrConstant(e, i.src1, e.xmm3);
+          auto src2 = GetInputRegOrConstant(e, i.src2, e.xmm4);
+
+#if XE_PLATFORM_WIN32
+          // Windows x64 ABI: __m128i is passed by implicit pointer
+          e.lea(e.GetNativeParam(0), e.StashXmm(0, src1));
+          e.lea(e.GetNativeParam(1), e.StashXmm(1, src2));
+#else
+          // Linux/Mac System V ABI: __m128i passed in xmm0/xmm1, return in xmm0
+          e.vmovaps(e.xmm0, src1);
+          e.vmovaps(e.xmm1, src2);
+#endif
           e.CallNativeSafe(reinterpret_cast<void*>(EmulatePack8_IN_16_UN_UN));
           e.vmovaps(i.dest, e.xmm0);
           e.vpshufb(i.dest, i.dest, e.GetXmmConstPtr(XMMByteOrderMask));
@@ -3176,11 +3190,15 @@ struct UNPACK : Sequence<UNPACK, I<OPCODE_UNPACK, V128Op, V128Op>> {
     // Also zero out the high end.
     // TODO(benvanik): special case constant unpacks that just get 0/1/etc.
 
-    if (i.src1.is_constant) {
-      e.lea(e.GetNativeParam(0), e.StashConstantXmm(0, i.src1.constant()));
-    } else {
-      e.lea(e.GetNativeParam(0), e.StashXmm(0, i.src1));
-    }
+    auto src1 = GetInputRegOrConstant(e, i.src1, e.xmm3);
+
+#if XE_PLATFORM_WIN32
+    // Windows x64 ABI: __m128i is passed by implicit pointer
+    e.lea(e.GetNativeParam(0), e.StashXmm(0, src1));
+#else
+    // Linux/Mac System V ABI: __m128i passed in xmm0, return in xmm0
+    e.vmovaps(e.xmm0, src1);
+#endif
     e.CallNativeSafe(reinterpret_cast<void*>(EmulateFLOAT16_2));
     e.vmovaps(i.dest, e.xmm0);
   }

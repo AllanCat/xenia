@@ -2225,9 +2225,15 @@ struct POW2_V128 : Sequence<POW2_V128, I<OPCODE_POW2, V128Op, V128Op>> {
   }
   static void Emit(X64Emitter& e, const EmitArgType& i) {
     e.ChangeMxcsrMode(MXCSRMode::Vmx);
-    Xmm src1 = GetInputRegOrConstant(e, i.src1, e.xmm0);
-    e.lea(e.GetNativeParam(0), e.StashXmm(0, src1));
+    Xmm src1 = GetInputRegOrConstant(e, i.src1, e.xmm3);
 
+#if XE_PLATFORM_WIN32
+    // Windows x64 ABI: __m128 is passed by implicit pointer
+    e.lea(e.GetNativeParam(0), e.StashXmm(0, src1));
+#else
+    // Linux/Mac System V ABI: __m128 passed in xmm0, return in xmm0
+    e.vmovaps(e.xmm0, src1);
+#endif
     e.CallNativeSafe(reinterpret_cast<void*>(EmulatePow2));
     e.vmovaps(i.dest, e.xmm0);
   }
@@ -2261,10 +2267,15 @@ struct LOG2_V128 : Sequence<LOG2_V128, I<OPCODE_LOG2, V128Op, V128Op>> {
   }
   static void Emit(X64Emitter& e, const EmitArgType& i) {
     e.ChangeMxcsrMode(MXCSRMode::Vmx);
-    Xmm src1 = GetInputRegOrConstant(e, i.src1, e.xmm0);
+    Xmm src1 = GetInputRegOrConstant(e, i.src1, e.xmm3);
 
+#if XE_PLATFORM_WIN32
+    // Windows x64 ABI: __m128 is passed by implicit pointer
     e.lea(e.GetNativeParam(0), e.StashXmm(0, src1));
-
+#else
+    // Linux/Mac System V ABI: __m128 passed in xmm0, return in xmm0
+    e.vmovaps(e.xmm0, src1);
+#endif
     e.CallNativeSafe(reinterpret_cast<void*>(EmulateLog2));
     e.vmovaps(i.dest, e.xmm0);
   }
