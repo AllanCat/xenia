@@ -2855,12 +2855,24 @@ struct SHL_V128 : Sequence<SHL_V128, I<OPCODE_SHL, V128Op, V128Op, I8Op>> {
 
     auto src1 = GetInputRegOrConstant(e, i.src1, e.xmm3);
 
+#if XE_PLATFORM_WIN32
+    // Windows x64 ABI: __m128i is passed by implicit pointer
+    e.lea(e.GetNativeParam(0), e.StashXmm(0, src1));
+    if (i.src2.is_constant) {
+      e.mov(e.GetNativeParam(1), i.src2.constant());
+    } else {
+      // Zero-extend the 8-bit register to avoid garbage in upper bits
+      e.movzx(e.GetNativeParam(1).cvt32(), i.src2);
+    }
+#else
+    // Linux/Mac System V ABI: __m128i passed in xmm0, return in xmm0
+    e.vmovaps(e.xmm0, src1);
     if (i.src2.is_constant) {
       e.mov(e.GetNativeParam(1), i.src2.constant());
     } else {
       e.mov(e.GetNativeParam(1), i.src2);
     }
-    e.lea(e.GetNativeParam(0), e.StashXmm(0, src1));
+#endif
     e.CallNativeSafe(reinterpret_cast<void*>(EmulateShlV128));
     e.vmovaps(i.dest, e.xmm0);
   }
