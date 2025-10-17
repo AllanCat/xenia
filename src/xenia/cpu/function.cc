@@ -120,8 +120,13 @@ uintptr_t GuestFunction::MapGuestAddressToMachineCode(
 
 uint32_t GuestFunction::MapMachineCodeToGuestAddress(
     uintptr_t host_address) const {
-  auto entry = LookupMachineCodeOffset(static_cast<uint32_t>(
-      host_address - reinterpret_cast<uintptr_t>(machine_code())));
+  void* code = machine_code();
+  if (!code) {
+    assert_always("MapMachineCodeToGuestAddress called with no compiled code");
+    return address();
+  }
+  auto entry = LookupMachineCodeOffset(
+      static_cast<uint32_t>(host_address - reinterpret_cast<uintptr_t>(code)));
   return entry ? entry->guest_address : address();
 }
 
