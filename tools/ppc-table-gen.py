@@ -351,9 +351,8 @@ def generate_disasm(insns):
       w1('PadStringBuffer(str, str_start, kNamePad);')
     w0('}')
 
-  w0('#define INIT_LIST(...) {__VA_ARGS__}')
-  w0('#define INSTRUCTION(opcode, mnem, form, group, type, desc, reads, writes, fn) \\')
-  w0('    {PPCOpcodeGroup::group, PPCOpcodeFormat::form, opcode, mnem, desc, INIT_LIST reads, INIT_LIST writes, fn}')
+  w0('#define INSTRUCTION(opcode, mnem, form, group, type, desc, fn) \\')
+  w0('    {PPCOpcodeGroup::group, PPCOpcodeFormat::form, opcode, mnem, desc, fn}')
   w0('PPCOpcodeDisasmInfo ppc_opcode_disasm_table[] = {')
   fmt = 'INSTRUCTION(' + ', '.join([
       '0x%08x',
@@ -362,8 +361,6 @@ def generate_disasm(insns):
       '%-' + str(group_len) + 's',
       '%-' + str(type_len) + 's',
       '%-' + str(desc_len) + 's',
-      '(%s)',
-      '(%s)',
       '%s',
       ]) + '),'
   for i in insns:
@@ -374,8 +371,6 @@ def generate_disasm(insns):
         i.group,
         i.type,
         i.desc,
-        ','.join(['PPCOpcodeField::' + c_field(r) for r in i.reads]),
-        ','.join(['PPCOpcodeField::' + c_field(w) for w in i.writes]),
         ('PrintDisasm_' + literal_mnem(i.mnem)) if i.disasm_str else 'nullptr',
         ))
   w0('};')
@@ -437,7 +432,7 @@ def generate_lookup(insns):
     if i.op_primary not in subtables: subtables[i.op_primary] = []
     subtables[i.op_primary].append(i)
 
-  for pri in sorted(subtables.iterkeys()):
+  for pri in sorted(subtables.keys()):
     # all the extended encodings (which we care about) end with bit 30. So we want to
     # do the rest of the seach by bitscanning left from bit 30. This is simulated
     # in the C switch-statement by creating leafs for each extended opcode,
@@ -464,7 +459,7 @@ def generate_lookup(insns):
       extract_groups[extract_expression][2].append(i)
 
     w1('case %i:' % (pri))
-    for extract_expression in sorted(extract_groups.iterkeys()):
+    for extract_expression in sorted(extract_groups.keys()):
       (form, extract_expression, group_insns) = extract_groups[extract_expression]
       bit_span_low = 31
       bit_span_high = 0
