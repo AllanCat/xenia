@@ -3,8 +3,7 @@ test_lvx128_1:
   #_ MEMORY_IN 0x0000000010001000 [01, 02, 03, 04, 05, 06, 07, 08, 09, 0A, 0B, 0C, 0D, 0E, 0F, 10]
   #_ REGISTER_IN r4 0x0000000010001000
   li r5, 0
-  # lvx128 v3, r4, r5
-  .long 0x106428C3  # lvx128 v3, r4, r5
+  lvx128 v3, r4, r5
   blr
   #_ REGISTER_OUT r4 0x0000000010001000
   #_ REGISTER_OUT r5 0
@@ -16,8 +15,7 @@ test_lvx128_2:
   #_ MEMORY_IN 0x0000000010001010 [AA, BB, CC, DD, EE, FF, 00, 11, 22, 33, 44, 55, 66, 77, 88, 99]
   #_ REGISTER_IN r4 0x0000000010001000
   li r5, 16
-  # lvx128 v3, r4, r5
-  .long 0x106428C3
+  lvx128 v3, r4, r5
   blr
   #_ REGISTER_OUT r4 0x0000000010001000
   #_ REGISTER_OUT r5 16
@@ -28,8 +26,7 @@ test_lvx128_3:
   #_ MEMORY_IN 0x0000000010001000 [F0, F1, F2, F3, F4, F5, F6, F7, F8, F9, FA, FB, FC, FD, FE, FF]
   #_ REGISTER_IN r4 0x0000000010001000
   li r5, 13  # unaligned
-  # lvx128 v3, r4, r5
-  .long 0x106428C3
+  lvx128 v3, r4, r5
   blr
   #_ REGISTER_OUT r4 0x0000000010001000
   #_ REGISTER_OUT r5 13
@@ -43,8 +40,7 @@ test_lvx128_4:
   #_ MEMORY_IN 0x0000000010001020 [DE, AD, BE, EF, CA, FE, BA, BE, 00, 11, 22, 33, 44, 55, 66, 77]
   #_ REGISTER_IN r4 0x0000000010001000
   li r5, 32
-  # lvx128 v3, r4, r5
-  .long 0x106428C3
+  lvx128 v3, r4, r5
   blr
   #_ REGISTER_OUT r4 0x0000000010001000
   #_ REGISTER_OUT r5 32
@@ -55,8 +51,7 @@ test_lvx128_5:
   #_ MEMORY_IN 0x0000000010001000 [00, 11, 22, 33, 44, 55, 66, 77, 88, 99, AA, BB, CC, DD, EE, FF]
   #_ REGISTER_IN r4 0x0000000010001000
   li r5, 0
-  # lvx128 v3, r4, r5
-  .long 0x106428C3
+  lvx128 v3, r4, r5
   blr
   #_ REGISTER_OUT r4 0x0000000010001000
   #_ REGISTER_OUT r5 0
@@ -67,8 +62,8 @@ test_lvx128_6:
   #_ MEMORY_IN 0x0000000010001000 [A5, A5, A5, A5, 5A, 5A, 5A, 5A, FF, 00, FF, 00, 00, FF, 00, FF]
   #_ REGISTER_IN r4 0x0000000010001000
   li r5, 0
-  # lvx128 v100, r4, r5
-  .long 0x1C8428C3  # lvx128 v100, r4, r5
+  # lvx128 v100, r4, r5 (binutils doesn't support high register names)
+  .long 0x1C8428C3
   blr
   #_ REGISTER_OUT r5 0
   #_ REGISTER_OUT v100 [00000000, 00000000, 00000000, 00000000]
@@ -80,14 +75,11 @@ test_lvx128_7:
   #_ MEMORY_IN 0x0000000010001020 [99, 99, 99, 99, AA, AA, AA, AA, BB, BB, BB, BB, CC, CC, CC, CC]
   #_ REGISTER_IN r4 0x0000000010001000
   li r5, 0
-  # lvx128 v3, r4, r5
-  .long 0x106428C3
+  lvx128 v3, r4, r5
   li r5, 16
-  # lvx128 v4, r4, r5
-  .long 0x108428C3
+  lvx128 v4, r4, r5
   li r5, 32
-  # lvx128 v5, r4, r5
-  .long 0x10A428C3
+  lvx128 v5, r4, r5
   blr
   #_ REGISTER_OUT r4 0x0000000010001000
   #_ REGISTER_OUT r5 32

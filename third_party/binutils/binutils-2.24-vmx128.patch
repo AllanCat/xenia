@@ -85,13 +85,13 @@ diff -u -P -r opcodes/ppc-opc.c opcodes/ppc-opc.c
 +  { 0xff, 0, insert_vperm, extract_vperm, 0 },
 +
 +#define VD3D0 VPERM128 + 1
-+  { 3, 18, NULL, NULL, 0 },
++  { 0x7, 18, NULL, NULL, 0 },
 +
 +#define VD3D1 VD3D0 + 1
-+  { 2, 16, NULL, NULL, 0 },
++  { 0x3, 16, NULL, NULL, 0 },
 +
 +#define VD3D2 VD3D1 + 1
-+  { 2, 6, NULL, NULL, 0 },
++  { 0x3, 6, NULL, NULL, 0 },
 +
 +   /* The SIMM field in a VX form instruction, and TE in Z form.  */
 +#define SIMM VD3D2 + 1
