@@ -1262,8 +1262,6 @@ class GenTestsCommand(Command):
             *args, **kwargs)
 
     def process_src_file(test_bin, ppc_as, ppc_objdump, ppc_ld, ppc_nm, src_file):
-        print(f"- {src_file}")
-
         def make_unix_path(p):
             """Forces a unix path separator style, as required by binutils.
             """
@@ -1317,26 +1315,43 @@ class GenTestsCommand(Command):
             make_unix_path(obj_file),
             ], stdout_path=f"{os.path.join(test_bin, src_name)}.map")
 
+        return src_file
+
     def execute(self, args, pass_args, cwd):
         print("Generating test binaries...\n")
 
-        if sys.platform == "win32":
-            binutils_path = os.path.join("third_party", "binutils-ppc-cygwin")
-        else:
-            binutils_path = os.path.join("third_party", "binutils", "bin")
+        # Use the same binutils path on all platforms
+        binutils_path = os.path.join("third_party", "binutils", "bin")
 
         ppc_as = os.path.join(binutils_path, "powerpc-none-elf-as")
         ppc_ld = os.path.join(binutils_path, "powerpc-none-elf-ld")
         ppc_objdump = os.path.join(binutils_path, "powerpc-none-elf-objdump")
         ppc_nm = os.path.join(binutils_path, "powerpc-none-elf-nm")
 
-        if not os.path.exists(ppc_as) and sys.platform == "linux":
+        # Check if binutils exists (with .exe on Windows)
+        ppc_as_check = ppc_as + (".exe" if sys.platform == "win32" else "")
+        if not os.path.exists(ppc_as_check):
             print("Binaries are missing, binutils build required\n")
-            shell_script = os.path.join("third_party", "binutils", "build.sh")
-            # Set executable bit for build script before running it
-            os.chmod(shell_script, stat.S_IRUSR | stat.S_IWUSR |
-                     stat.S_IXUSR | stat.S_IRGRP | stat.S_IROTH)
-            shell_call([shell_script])
+            binutils_dir = os.path.join("third_party", "binutils")
+            shell_script = "build.sh"
+
+            # Save current directory
+            original_dir = os.getcwd()
+
+            if sys.platform == "linux":
+                # Set executable bit for build script before running it
+                os.chdir(binutils_dir)
+                os.chmod(shell_script, stat.S_IRUSR | stat.S_IWUSR |
+                         stat.S_IXUSR | stat.S_IRGRP | stat.S_IROTH)
+                shell_call([f"./{shell_script}"])
+                os.chdir(original_dir)
+            elif sys.platform == "win32":
+                # On Windows, add Cygwin to PATH and run bash
+                cygwin_bin = r"C:\cygwin64\bin"
+                os.environ["PATH"] = f"{cygwin_bin}{os.pathsep}{os.environ['PATH']}"
+                os.chdir(binutils_dir)
+                shell_call(["bash", shell_script])
+                os.chdir(original_dir)
 
         test_src = os.path.join("src", "xenia", "cpu", "ppc", "testing")
         test_bin = os.path.join(test_src, "bin")
@@ -1355,8 +1370,8 @@ class GenTestsCommand(Command):
 
         pool_func = partial(GenTestsCommand.process_src_file, test_bin, ppc_as, ppc_objdump, ppc_ld, ppc_nm)
         with Pool() as pool:
-            pool.map(pool_func, src_files)
-
+            for src_file in pool.imap_unordered(pool_func, src_files):
+                print(f"- {src_file}")
 
         if any_errors:
             print_error("failed to build one or more tests.")
