@@ -77,12 +77,12 @@ diff -u -P -r opcodes/ppc-opc.c opcodes/ppc-opc.c
 +  /* The VC128 field in a VA, VX, VXR or X form instruction. */
 +#define VC128 VB128 + 1
 +#define VC128_MASK (0x1f << 21)
-+  { 3, 6, NULL, NULL, PPC_OPERAND_VR },
++  { 3, 6, NULL, NULL, 0 },
 +
 +  /* The VPERM field in a VPERM128 form instruction. */
 +#define VPERM128 VC128 + 1
 +#define VPERM_MASK (0x1f << 21)
-+  { 8, 0, insert_vperm, extract_vperm, 0 },
++  { 0xff, 0, insert_vperm, extract_vperm, 0 },
 +
 +#define VD3D0 VPERM128 + 1
 +  { 3, 18, NULL, NULL, 0 },
@@ -296,7 +296,7 @@ diff -u -P -r opcodes/ppc-opc.c opcodes/ppc-opc.c
 +{ "vlogefp128",  VX128_3(6, 1776), VX128_3_MASK, PPCVEC128, PPCNONE, { VD128, VB128 } },
 +{ "vrlimi128",   VX128_4(6, 1808), VX128_4_MASK, PPCVEC128, PPCNONE, { VD128, VB128, UIMM, VD3D2} },
 +{ "vspltw128",   VX128_3(6, 1840), VX128_3_MASK, PPCVEC128, PPCNONE, { VD128, VB128, UIMM } },
-+{ "vspltisw128", VX128_3(6, 1904), VX128_3_MASK, PPCVEC128, PPCNONE, { VD128, VB128, SIMM } },
++{ "vspltisw128", VX128_3(6, 1904), VX128_3_MASK, PPCVEC128, PPCNONE, { VD128, SIMM } },
 +{ "vupkd3d128",  VX128_3(6, 2032), VX128_3_MASK, PPCVEC128, PPCNONE, { VD128, VB128, UIMM } },
 +{ "vcmpeqfp128", VX128(6,   0), VX128_MASK, PPCVEC128, PPCNONE, { VD128, VA128, VB128 } },
 +{ "vcmpeqfp128.",VX128(6,  64), VX128_MASK, PPCVEC128, PPCNONE, { VD128, VA128, VB128 } },
@@ -394,3 +394,10 @@ diff -u -P -r opcodes/ppc-opc.c opcodes/ppc-opc.c
  
  {"divdeo",	XO(31,425,1,0),	XO_MASK,  POWER7|PPCA2,	PPCNONE,	{RT, RA, RB}},
  {"divdeo.",	XO(31,425,1,1),	XO_MASK,  POWER7|PPCA2,	PPCNONE,	{RT, RA, RB}},
+@@ -6055,6 +6304,8 @@
+ {"divwo",	XO(31,491,1,0),	XO_MASK,   PPC|PPCVLE,	PPCNONE,	{RT, RA, RB}},
+ {"divwo.",	XO(31,491,1,1),	XO_MASK,   PPC|PPCVLE,	PPCNONE,	{RT, RA, RB}},
+
++{"dcbz128",	X(31,1014) | (1<<21),	XRT_MASK,    PPCVEC128,	PPCNONE,	{RA0, RB}},
++
+ {"trechkpt.",	XRC(31,1006,1),	XRTRARB_MASK,PPCHTM,	PPCNONE,	{0}},
