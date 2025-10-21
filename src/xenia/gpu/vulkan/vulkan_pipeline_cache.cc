@@ -175,6 +175,14 @@ VulkanPipelineCache::GetCurrentVertexShaderModification(
 
   modification.vertex.interpolator_mask = interpolator_mask;
 
+  // User clip planes.
+  auto pa_cl_clip_cntl = regs.Get<reg::PA_CL_CLIP_CNTL>();
+  uint32_t user_clip_planes =
+      pa_cl_clip_cntl.clip_disable ? 0 : pa_cl_clip_cntl.ucp_ena;
+  modification.vertex.user_clip_plane_count = xe::bit_count(user_clip_planes);
+  modification.vertex.user_clip_plane_cull =
+      uint32_t(user_clip_planes && pa_cl_clip_cntl.ucp_cull_only_ena);
+
   if (host_vertex_shader_type ==
       Shader::HostVertexShaderType::kPointListAsTriangleStrip) {
     modification.vertex.output_point_parameters = uint32_t(ps_param_gen_used);
@@ -805,15 +813,14 @@ bool VulkanPipelineCache::GetGeometryShaderKey(
   // real counts here.
   key.interpolator_count =
       xe::bit_count(vertex_shader_modification.vertex.interpolator_mask);
-  key.user_clip_plane_count =
-      /* vertex_shader_modification.vertex.user_clip_plane_count */ 0;
-  key.user_clip_plane_cull =
-      /* vertex_shader_modification.vertex.user_clip_plane_cull */ 0;
   key.has_vertex_kill_and =
       /* vertex_shader_modification.vertex.vertex_kill_and */ 0;
   key.has_point_size =
       vertex_shader_modification.vertex.output_point_parameters;
   key.has_point_coordinates = pixel_shader_modification.pixel.param_gen_point;
+  // Single bit to indicate if clip planes are enabled.
+  key.has_user_clip_planes =
+      uint32_t(vertex_shader_modification.vertex.user_clip_plane_count > 0);
   key_out = key;
   return true;
 }
@@ -858,10 +865,12 @@ VkShaderModule VulkanPipelineCache::GetGeometryShader(GeometryShaderKey key) {
       assert_unhandled_case(key.type);
   }
 
+  // When enabled, use max size to reduce variants from different counts.
+  constexpr uint32_t kMaxUserClipPlanes = 6;
   uint32_t clip_distance_count =
-      key.user_clip_plane_cull ? 0 : key.user_clip_plane_count;
+      key.has_user_clip_planes ? kMaxUserClipPlanes : 0;
   uint32_t cull_distance_count =
-      (key.user_clip_plane_cull ? key.user_clip_plane_count : 0) +
+      (key.has_user_clip_planes ? kMaxUserClipPlanes : 0) +
       key.has_vertex_kill_and;
 
   SpirvBuilder builder(spv::Spv_1_5,

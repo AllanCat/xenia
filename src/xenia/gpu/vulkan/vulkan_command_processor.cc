@@ -4064,6 +4064,34 @@ void VulkanCommandProcessor::UpdateSystemConstantValues(
     system_constants_.ndc_offset[i] = viewport_info.ndc_offset[i];
   }
 
+  // User clip planes (for vertex shaders)
+  auto pa_cl_clip_cntl = regs.Get<reg::PA_CL_CLIP_CNTL>();
+  if (!pa_cl_clip_cntl.clip_disable && pa_cl_clip_cntl.ucp_ena) {
+    float* user_clip_plane_write_ptr =
+        clip_plane_constants_.user_clip_planes[0];
+    uint32_t user_clip_planes_remaining = pa_cl_clip_cntl.ucp_ena;
+    uint32_t user_clip_plane_index;
+    while (xe::bit_scan_forward(user_clip_planes_remaining,
+                                &user_clip_plane_index)) {
+      user_clip_planes_remaining =
+          xe::clear_lowest_bit(user_clip_planes_remaining);
+      // Validate plane index is within bounds (0-5).
+      assert(user_clip_plane_index < 6);
+      if (user_clip_plane_index >= 6) {
+        continue;
+      }
+      const void* user_clip_plane_regs =
+          &regs[XE_GPU_REG_PA_CL_UCP_0_X + user_clip_plane_index * 4];
+      if (std::memcmp(user_clip_plane_write_ptr, user_clip_plane_regs,
+                      4 * sizeof(float))) {
+        dirty = true;
+        std::memcpy(user_clip_plane_write_ptr, user_clip_plane_regs,
+                    4 * sizeof(float));
+      }
+      user_clip_plane_write_ptr += 4;
+    }
+  }
+
   // Point size.
   if (vgt_draw_initiator.prim_type == xenos::PrimitiveType::kPointList) {
     auto pa_su_point_minmax = regs.Get<reg::PA_SU_POINT_MINMAX>();
@@ -4445,6 +4473,29 @@ bool VulkanCommandProcessor::UpdateBindings(const VulkanShader* vertex_shader,
                   sizeof(SpirvShaderTranslator::SystemConstants));
       current_constant_buffers_up_to_date_ |=
           UINT32_C(1) << SpirvShaderTranslator::kConstantBufferSystem;
+    }
+    // Clip plane constants.
+    auto pa_cl_clip_cntl = regs.Get<reg::PA_CL_CLIP_CNTL>();
+    bool clip_planes_enabled =
+        !pa_cl_clip_cntl.clip_disable && pa_cl_clip_cntl.ucp_ena;
+    if (clip_planes_enabled) {
+      if (!(current_constant_buffers_up_to_date_ &
+            (UINT32_C(1)
+             << SpirvShaderTranslator::kConstantBufferClipPlanes))) {
+        VkDescriptorBufferInfo& buffer_info = current_constant_buffer_infos_
+            [SpirvShaderTranslator::kConstantBufferClipPlanes];
+        uint8_t* mapping = uniform_buffer_pool_->Request(
+            frame_current_, sizeof(SpirvShaderTranslator::ClipPlaneConstants),
+            uniform_buffer_alignment, buffer_info.buffer, buffer_info.offset);
+        if (!mapping) {
+          return false;
+        }
+        buffer_info.range = sizeof(SpirvShaderTranslator::ClipPlaneConstants);
+        std::memcpy(mapping, &clip_plane_constants_,
+                    sizeof(SpirvShaderTranslator::ClipPlaneConstants));
+        current_constant_buffers_up_to_date_ |=
+            UINT32_C(1) << SpirvShaderTranslator::kConstantBufferClipPlanes;
+      }
     }
     // Vertex shader float constants.
     if (!(current_constant_buffers_up_to_date_ &

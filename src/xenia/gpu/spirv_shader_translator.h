@@ -60,6 +60,11 @@ class SpirvShaderTranslator : public ShaderTranslator {
       // Pipeline stage and input configuration.
       Shader::HostVertexShaderType host_vertex_shader_type
           : Shader::kHostVertexShaderTypeBitCount;
+      // User clip plane count, number of clip planes enabled (0-6).
+      uint32_t user_clip_plane_count : 3;
+      // If user_clip_plane_count is non-zero, whether they should be cull
+      // distances instead of clip distances.
+      uint32_t user_clip_plane_cull : 1;
     } vertex;
     struct PixelShaderModification {
       // uint32_t 0.
@@ -258,12 +263,18 @@ class SpirvShaderTranslator : public ShaderTranslator {
     float edram_blend_constant[4];
   };
 
+  // Separate constant buffer for user clip planes
+  struct ClipPlaneConstants {
+    float user_clip_planes[6][4];
+  };
+
   enum ConstantBuffer : uint32_t {
     kConstantBufferSystem,
     kConstantBufferFloatVertex,
     kConstantBufferFloatPixel,
     kConstantBufferBoolLoop,
     kConstantBufferFetch,
+    kConstantBufferClipPlanes,
 
     kConstantBufferCount,
   };
@@ -846,6 +857,7 @@ class SpirvShaderTranslator : public ShaderTranslator {
     kSystemConstantEdramBlendConstant,
   };
   spv::Id uniform_system_constants_;
+  spv::Id uniform_clip_plane_constants_;
   spv::Id uniform_float_constants_;
   spv::Id uniform_bool_loop_constants_;
   spv::Id uniform_fetch_constants_;
@@ -895,6 +907,8 @@ class SpirvShaderTranslator : public ShaderTranslator {
     kOutputPerVertexMemberCount,
   };
   spv::Id output_per_vertex_;
+  unsigned int output_per_vertex_clip_distance_member_index_ = 0;
+  unsigned int output_per_vertex_cull_distance_member_index_ = 0;
 
   // With fragment shader interlock, variables in the main function.
   // Otherwise, framebuffer color attachment outputs.
