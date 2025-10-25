@@ -2744,14 +2744,50 @@ struct PACK : Sequence<PACK, I<OPCODE_PACK, V128Op, V128Op, V128Op>> {
     e.vmovaps(i.dest, e.xmm0);
   }
 
+  static __m128i EmulateFLOAT16_4_RoundToEven(void*, __m128 src1) {
+    alignas(16) uint16_t b[8] = {0};
+
+    // Extract and convert all 4 floats
+    float f0 = _mm_cvtss_f32(src1);
+    float f1 =
+        _mm_cvtss_f32(_mm_shuffle_ps(src1, src1, _MM_SHUFFLE(1, 1, 1, 1)));
+    float f2 =
+        _mm_cvtss_f32(_mm_shuffle_ps(src1, src1, _MM_SHUFFLE(2, 2, 2, 2)));
+    float f3 =
+        _mm_cvtss_f32(_mm_shuffle_ps(src1, src1, _MM_SHUFFLE(3, 3, 3, 3)));
+
+    // Convert to float16 with round-to-nearest-even
+    // Index calculation: 7 - (i ^ 2) where ^ is XOR
+    b[5] = float_to_xenos_half(f0, false, true);  // 7 - (0 ^ 2) = 7 - 2 = 5
+    b[4] = float_to_xenos_half(f1, false, true);  // 7 - (1 ^ 2) = 7 - 3 = 4
+    b[7] = float_to_xenos_half(f2, false, true);  // 7 - (2 ^ 2) = 7 - 0 = 7
+    b[6] = float_to_xenos_half(f3, false, true);  // 7 - (3 ^ 2) = 7 - 1 = 6
+
+    return _mm_load_si128(reinterpret_cast<const __m128i*>(b));
+  }
+
   static void EmitFLOAT16_4(X64Emitter& e, const EmitArgType& i) {
     if (!i.src1.is_constant) {
+#if XE_ARCH_AMD64
+      // TODO(has207): this code has an off-by-1 in rounding
+      // compared to the fallback which is accurate, but
+      // keeping it as default. Should be fixed.
       emit_fast_f16_pack(e, i, XMMPackFLOAT16_4);
+#else
+      auto src1 = GetInputRegOrConstant(e, i.src1, e.xmm3);
+#if XE_PLATFORM_WIN32
+      e.lea(e.GetNativeParam(0), e.StashXmm(0, src1));
+#else
+      e.vmovaps(e.xmm0, src1);
+#endif
+      e.CallNativeSafe(reinterpret_cast<void*>(EmulateFLOAT16_4_RoundToEven));
+      e.vmovdqa(i.dest, e.xmm0);
+#endif
     } else {
       vec128_t result = vec128b(0);
       for (unsigned idx = 0; idx < 4; ++idx) {
         result.u16[(7 - (idx ^ 2))] =
-            float_to_xenos_half(i.src1.constant().f32[idx]);
+            float_to_xenos_half(i.src1.constant().f32[idx], false, true);
       }
 
       e.LoadConstantXmm(i.dest, result);
