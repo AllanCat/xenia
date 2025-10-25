@@ -947,9 +947,9 @@ struct VECTOR_SHL_V128
         e.vpshufb(e.xmm2, e.xmm2, e.GetXmmConstPtr(XMMIntsToBytes));
         e.vpshufb(e.xmm3, e.xmm3, e.GetXmmConstPtr(XMMIntsToBytes));
 
-        e.vpunpckldq(e.xmm0, e.xmm0, e.xmm1);
-        e.vpunpckldq(e.xmm2, e.xmm2, e.xmm3);
-        e.vpunpcklqdq(i.dest, e.xmm0, e.xmm2);
+        e.vpunpckldq(e.xmm0, e.xmm0, e.xmm2);
+        e.vpunpckldq(e.xmm1, e.xmm1, e.xmm3);
+        e.vpunpcklqdq(i.dest, e.xmm0, e.xmm1);
         return;
       } else {
         vec128_t constmask = i.src2.constant();
@@ -1001,9 +1001,9 @@ struct VECTOR_SHL_V128
           e.vpshufb(e.xmm2, e.xmm2, e.GetXmmConstPtr(XMMIntsToBytes));
           e.vpshufb(e.xmm3, e.xmm3, e.GetXmmConstPtr(XMMIntsToBytes));
 
-          e.vpunpckldq(e.xmm0, e.xmm0, e.xmm1);
-          e.vpunpckldq(e.xmm2, e.xmm2, e.xmm3);
-          e.vpunpcklqdq(i.dest, e.xmm0, e.xmm2);
+          e.vpunpckldq(e.xmm0, e.xmm0, e.xmm2);
+          e.vpunpckldq(e.xmm1, e.xmm1, e.xmm3);
+          e.vpunpcklqdq(i.dest, e.xmm0, e.xmm1);
 
           return;
         }
