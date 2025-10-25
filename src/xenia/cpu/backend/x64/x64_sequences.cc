@@ -1323,7 +1323,11 @@ struct ADD_I64 : Sequence<ADD_I64, I<OPCODE_ADD, I64Op, I64Op, I64Op>> {
 };
 struct ADD_F32 : Sequence<ADD_F32, I<OPCODE_ADD, F32Op, F32Op, F32Op>> {
   static void Emit(X64Emitter& e, const EmitArgType& i) {
-    assert_impossible_sequence(ADD_F32);
+    e.ChangeMxcsrMode(MXCSRMode::Fpu);
+
+    Xmm src1 = GetInputRegOrConstant(e, i.src1, e.xmm0);
+    Xmm src2 = GetInputRegOrConstant(e, i.src2, e.xmm1);
+    e.vaddss(i.dest, src1, src2);
   }
 };
 struct ADD_F64 : Sequence<ADD_F64, I<OPCODE_ADD, F64Op, F64Op, F64Op>> {
@@ -1441,7 +1445,11 @@ struct SUB_I64 : Sequence<SUB_I64, I<OPCODE_SUB, I64Op, I64Op, I64Op>> {
 };
 struct SUB_F32 : Sequence<SUB_F32, I<OPCODE_SUB, F32Op, F32Op, F32Op>> {
   static void Emit(X64Emitter& e, const EmitArgType& i) {
-    assert_impossible_sequence(SUB_F32);
+    assert_true(!i.instr->flags);
+    e.ChangeMxcsrMode(MXCSRMode::Fpu);
+    Xmm src1 = GetInputRegOrConstant(e, i.src1, e.xmm0);
+    Xmm src2 = GetInputRegOrConstant(e, i.src2, e.xmm1);
+    e.vsubss(i.dest, src1, src2);
   }
 };
 struct SUB_F64 : Sequence<SUB_F64, I<OPCODE_SUB, F64Op, F64Op, F64Op>> {
@@ -1582,7 +1590,12 @@ struct MUL_I64 : Sequence<MUL_I64, I<OPCODE_MUL, I64Op, I64Op, I64Op>> {
 };
 struct MUL_F32 : Sequence<MUL_F32, I<OPCODE_MUL, F32Op, F32Op, F32Op>> {
   static void Emit(X64Emitter& e, const EmitArgType& i) {
-    assert_impossible_sequence(MUL_F32);
+    assert_true(!i.instr->flags);
+    e.ChangeMxcsrMode(MXCSRMode::Fpu);
+
+    Xmm src1 = GetInputRegOrConstant(e, i.src1, e.xmm0);
+    Xmm src2 = GetInputRegOrConstant(e, i.src2, e.xmm1);
+    e.vmulss(i.dest, src1, src2);
   }
 };
 struct MUL_F64 : Sequence<MUL_F64, I<OPCODE_MUL, F64Op, F64Op, F64Op>> {
@@ -1861,7 +1874,12 @@ struct DIV_I64 : Sequence<DIV_I64, I<OPCODE_DIV, I64Op, I64Op, I64Op>> {
 };
 struct DIV_F32 : Sequence<DIV_F32, I<OPCODE_DIV, F32Op, F32Op, F32Op>> {
   static void Emit(X64Emitter& e, const EmitArgType& i) {
-    assert_impossible_sequence(DIV_F32);
+    assert_true(!i.instr->flags);
+    e.ChangeMxcsrMode(MXCSRMode::Fpu);
+
+    Xmm src1 = GetInputRegOrConstant(e, i.src1, e.xmm0);
+    Xmm src2 = GetInputRegOrConstant(e, i.src2, e.xmm1);
+    e.vdivss(i.dest, src1, src2);
   }
 };
 struct DIV_F64 : Sequence<DIV_F64, I<OPCODE_DIV, F64Op, F64Op, F64Op>> {
