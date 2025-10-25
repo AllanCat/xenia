@@ -671,11 +671,11 @@ struct VECTOR_ADD
               if (saturate) {
                 if (is_unsigned) {
                   if (e.IsFeatureEnabled(kX64EmitAVX512Ortho)) {
-                    e.vpaddd(dest, src1, src2);
-                    Opmask saturate = e.k1;
-                    // _mm_cmplt_epu32_mask
-                    e.vpcmpud(saturate, dest, src1, 0x1);
-                    e.vpternlogd(dest | saturate, dest, dest, 0xFF);
+                    e.vpaddd(e.xmm1, src1, src2);
+                    Opmask no_overflow = e.k1;
+                    e.vpcmpud(no_overflow, e.xmm1, src1, 0x5);
+                    e.vpcmpeqd(dest, dest, dest);
+                    e.vmovdqa32(dest | no_overflow, e.xmm1);
                     return;
                   }
 
