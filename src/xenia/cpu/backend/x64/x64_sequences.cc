@@ -2156,36 +2156,27 @@ struct RECIP_F32 : Sequence<RECIP_F32, I<OPCODE_RECIP, F32Op, F32Op>> {
   static void Emit(X64Emitter& e, const EmitArgType& i) {
     e.ChangeMxcsrMode(MXCSRMode::Fpu);
     Xmm src1 = GetInputRegOrConstant(e, i.src1, e.xmm3);
-    if (e.IsFeatureEnabled(kX64EmitAVX512Ortho)) {
-      e.vrcp14ss(i.dest, src1, src1);
-    } else {
-      e.vmovaps(e.xmm0, e.GetXmmConstPtr(XMMOne));
-      e.vdivss(i.dest, e.xmm0, src1);
-    }
+    // AVX512's vrcp14ss has precision issues, division gives exact results
+    e.vmovaps(e.xmm0, e.GetXmmConstPtr(XMMOne));
+    e.vdivss(i.dest, e.xmm0, src1);
   }
 };
 struct RECIP_F64 : Sequence<RECIP_F64, I<OPCODE_RECIP, F64Op, F64Op>> {
   static void Emit(X64Emitter& e, const EmitArgType& i) {
     e.ChangeMxcsrMode(MXCSRMode::Fpu);
     Xmm src1 = GetInputRegOrConstant(e, i.src1, e.xmm3);
-    if (e.IsFeatureEnabled(kX64EmitAVX512Ortho)) {
-      e.vrcp14sd(i.dest, src1, src1);
-    } else {
-      e.vmovapd(e.xmm0, e.GetXmmConstPtr(XMMOnePD));
-      e.vdivsd(i.dest, e.xmm0, src1);
-    }
+    // AVX512's vrcp14ss has precision issues, division gives exact results
+    e.vmovapd(e.xmm0, e.GetXmmConstPtr(XMMOnePD));
+    e.vdivsd(i.dest, e.xmm0, src1);
   }
 };
 struct RECIP_V128 : Sequence<RECIP_V128, I<OPCODE_RECIP, V128Op, V128Op>> {
   static void Emit(X64Emitter& e, const EmitArgType& i) {
     e.ChangeMxcsrMode(MXCSRMode::Vmx);
     Xmm src1 = GetInputRegOrConstant(e, i.src1, e.xmm3);
-    if (e.IsFeatureEnabled(kX64EmitAVX512Ortho)) {
-      e.vrcp14ps(i.dest, src1);
-    } else {
-      e.vmovaps(e.xmm0, e.GetXmmConstPtr(XMMOne));
-      e.vdivps(i.dest, e.xmm0, src1);
-    }
+    // AVX512's vrcp14ps has precision issues, devision gives exact results
+    e.vmovaps(e.xmm0, e.GetXmmConstPtr(XMMOne));
+    e.vdivps(i.dest, e.xmm0, src1);
   }
 };
 EMITTER_OPCODE_TABLE(OPCODE_RECIP, RECIP_F32, RECIP_F64, RECIP_V128);
