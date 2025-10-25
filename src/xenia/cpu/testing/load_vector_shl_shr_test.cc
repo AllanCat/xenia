@@ -17,7 +17,9 @@ using xe::cpu::ppc::PPCContext;
 
 TEST_CASE("LOAD_VECTOR_SHL", "[instr]") {
   TestFunction test([](HIRBuilder& b) {
-    StoreVR(b, 3, b.LoadVectorShl(b.Truncate(LoadGPR(b, 4), INT8_TYPE)));
+    StoreVR(b, 3,
+            b.LoadVectorShl(b.Truncate(
+                b.And(LoadGPR(b, 4), b.LoadConstantInt64(0xF)), INT8_TYPE)));
     b.Return();
   });
   test.Run([](PPCContext* ctx) { ctx->r[4] = 0; },
@@ -48,7 +50,9 @@ TEST_CASE("LOAD_VECTOR_SHL", "[instr]") {
 
 TEST_CASE("LOAD_VECTOR_SHR", "[instr]") {
   TestFunction test([](HIRBuilder& b) {
-    StoreVR(b, 3, b.LoadVectorShr(b.Truncate(LoadGPR(b, 4), INT8_TYPE)));
+    StoreVR(b, 3,
+            b.LoadVectorShr(b.Truncate(
+                b.And(LoadGPR(b, 4), b.LoadConstantInt64(0xF)), INT8_TYPE)));
     b.Return();
   });
   test.Run([](PPCContext* ctx) { ctx->r[4] = 0; },
