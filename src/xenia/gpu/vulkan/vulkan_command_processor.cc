@@ -4475,27 +4475,32 @@ bool VulkanCommandProcessor::UpdateBindings(const VulkanShader* vertex_shader,
           UINT32_C(1) << SpirvShaderTranslator::kConstantBufferSystem;
     }
     // Clip plane constants.
-    auto pa_cl_clip_cntl = regs.Get<reg::PA_CL_CLIP_CNTL>();
-    bool clip_planes_enabled =
-        !pa_cl_clip_cntl.clip_disable && pa_cl_clip_cntl.ucp_ena;
-    if (clip_planes_enabled) {
-      if (!(current_constant_buffers_up_to_date_ &
-            (UINT32_C(1)
-             << SpirvShaderTranslator::kConstantBufferClipPlanes))) {
-        VkDescriptorBufferInfo& buffer_info = current_constant_buffer_infos_
-            [SpirvShaderTranslator::kConstantBufferClipPlanes];
-        uint8_t* mapping = uniform_buffer_pool_->Request(
-            frame_current_, sizeof(SpirvShaderTranslator::ClipPlaneConstants),
-            uniform_buffer_alignment, buffer_info.buffer, buffer_info.offset);
-        if (!mapping) {
-          return false;
-        }
-        buffer_info.range = sizeof(SpirvShaderTranslator::ClipPlaneConstants);
+    // Always initialize the buffer info, even if clip planes are disabled,
+    // because the descriptor set write always includes all constant buffers.
+    if (!(current_constant_buffers_up_to_date_ &
+          (UINT32_C(1) << SpirvShaderTranslator::kConstantBufferClipPlanes))) {
+      VkDescriptorBufferInfo& buffer_info = current_constant_buffer_infos_
+          [SpirvShaderTranslator::kConstantBufferClipPlanes];
+      uint8_t* mapping = uniform_buffer_pool_->Request(
+          frame_current_, sizeof(SpirvShaderTranslator::ClipPlaneConstants),
+          uniform_buffer_alignment, buffer_info.buffer, buffer_info.offset);
+      if (!mapping) {
+        return false;
+      }
+      buffer_info.range = sizeof(SpirvShaderTranslator::ClipPlaneConstants);
+      auto pa_cl_clip_cntl = regs.Get<reg::PA_CL_CLIP_CNTL>();
+      bool clip_planes_enabled =
+          !pa_cl_clip_cntl.clip_disable && pa_cl_clip_cntl.ucp_ena;
+      if (clip_planes_enabled) {
         std::memcpy(mapping, &clip_plane_constants_,
                     sizeof(SpirvShaderTranslator::ClipPlaneConstants));
-        current_constant_buffers_up_to_date_ |=
-            UINT32_C(1) << SpirvShaderTranslator::kConstantBufferClipPlanes;
+      } else {
+        // Zero out the buffer when clip planes are disabled
+        std::memset(mapping, 0,
+                    sizeof(SpirvShaderTranslator::ClipPlaneConstants));
       }
+      current_constant_buffers_up_to_date_ |=
+          UINT32_C(1) << SpirvShaderTranslator::kConstantBufferClipPlanes;
     }
     // Vertex shader float constants.
     if (!(current_constant_buffers_up_to_date_ &
