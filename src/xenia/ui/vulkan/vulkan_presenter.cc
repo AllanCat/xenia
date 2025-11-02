@@ -48,6 +48,11 @@ DEFINE_bool(
     "may present with tearing if frames don't meet the host display refresh "
     "rate.",
     "Vulkan");
+DEFINE_bool(
+    vulkan_semaphore_reuse_workaround, false,
+    "Wait for presentation queue idle before each frame to prevent semaphore "
+    "reuse. May fix rendering issues but causes significant performance loss.",
+    "Vulkan");
 
 namespace xe {
 namespace ui {
@@ -1411,6 +1416,18 @@ Presenter::PaintResult VulkanPresenter::PaintAndPresentImpl(
 
   VkSemaphore acquire_semaphore = paint_submission.acquire_semaphore();
 
+  // WORKAROUND: Wait for presentation queue to be idle to ensure semaphore
+  // from previous present is not in use. This prevents
+  // VUID-vkQueueSubmit-pSignalSemaphores-00067.
+  // The semaphore is unsignaled by vkQueuePresentKHR, not by submission fences,
+  // so we must wait for the present queue specifically.
+  // TODO(has207): Proper fix requires per-swapchain-image semaphores.
+  // See https://docs.vulkan.org/guide/latest/swapchain_semaphore_reuse.html
+  if (cvars::vulkan_semaphore_reuse_workaround) {
+    const VulkanDevice::Queue::Acquisition queue_acquisition =
+        vulkan_device_->AcquireQueue(paint_context_.present_queue_family, 0);
+    dfn.vkQueueWaitIdle(queue_acquisition.queue());
+  }
 
   uint32_t swapchain_image_index;
   VkResult acquire_result = dfn.vkAcquireNextImageKHR(
