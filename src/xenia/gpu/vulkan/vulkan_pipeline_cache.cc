@@ -553,7 +553,13 @@ bool VulkanPipelineCache::GetCurrentStateDescription(
       primitive_topology = PipelinePrimitiveTopology::kTriangleStrip;
       break;
     case xenos::PrimitiveType::kRectangleList:
-      geometry_shader = PipelineGeometryShader::kRectangleList;
+      // Only use geometry shader if not using the fallback AsTriangleStrip
+      // vertex shader type (which is used when geometry shaders aren't
+      // supported).
+      if (primitive_processing_result.host_vertex_shader_type !=
+          Shader::HostVertexShaderType::kRectangleListAsTriangleStrip) {
+        geometry_shader = PipelineGeometryShader::kRectangleList;
+      }
       primitive_topology = PipelinePrimitiveTopology::kTriangleList;
       break;
     case xenos::PrimitiveType::kQuadList:
@@ -765,12 +771,15 @@ bool VulkanPipelineCache::GetGeometryShaderKey(
   // For kPointListAsTriangleStrip, output_point_parameters has a different
   // meaning (the coordinates, not the size). However, the AsTriangleStrip host
   // vertex shader types are needed specifically when geometry shaders are not
-  // supported as fallbacks.
+  // supported as fallbacks - in that case, geometry_shader_type should be kNone
+  // and this function shouldn't be called.
   if (vertex_shader_modification.vertex.host_vertex_shader_type ==
           Shader::HostVertexShaderType::kPointListAsTriangleStrip ||
       vertex_shader_modification.vertex.host_vertex_shader_type ==
           Shader::HostVertexShaderType::kRectangleListAsTriangleStrip) {
-    assert_always();
+    XELOGE(
+        "GetGeometryShaderKey: AsTriangleStrip vertex shader types should not "
+        "be used with geometry shaders");
     return false;
   }
   GeometryShaderKey key;
