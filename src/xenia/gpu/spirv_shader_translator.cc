@@ -272,6 +272,7 @@ void SpirvShaderTranslator::StartTranslation() {
        type_uint_},
       {"alpha_test_reference", offsetof(SystemConstants, alpha_test_reference),
        type_float_},
+      {"alpha_to_mask", offsetof(SystemConstants, alpha_to_mask), type_uint_},
       {"edram_32bpp_tile_pitch_dwords_scaled",
        offsetof(SystemConstants, edram_32bpp_tile_pitch_dwords_scaled),
        type_uint_},
@@ -1982,7 +1983,12 @@ void SpirvShaderTranslator::StartFragmentShaderBeforeMain() {
   // TODO(Triang3l): More conditions - alpha to coverage (if RT 0 is written,
   // and there's no early depth / stencil), depth writing in the fragment shader
   // (per-sample if supported).
-  if (edram_fragment_shader_interlock_ || param_gen_needed) {
+  // Also needed for alpha-to-mask dithering in FBO mode.
+  bool need_frag_coord =
+      edram_fragment_shader_interlock_ || param_gen_needed ||
+      (!edram_fragment_shader_interlock_ && !is_depth_only_fragment_shader_ &&
+       current_shader().writes_color_target(0));
+  if (need_frag_coord) {
     input_fragment_coordinates_ = builder_->createVariable(
         spv::NoPrecision, spv::StorageClassInput, type_float4_, "gl_FragCoord");
     builder_->addDecoration(input_fragment_coordinates_, spv::DecorationBuiltIn,
@@ -2047,6 +2053,22 @@ void SpirvShaderTranslator::StartFragmentShaderBeforeMain() {
         main_interface_.push_back(output_fragment_data_rt);
       }
     }
+  }
+
+  // Sample mask output for alpha-to-coverage.
+  // Only needed for non-FSI mode. FSI uses main_fsi_sample_mask_ instead.
+  output_fragment_sample_mask_ = spv::NoResult;
+  if (!edram_fragment_shader_interlock_ && !is_depth_only_fragment_shader_) {
+    // gl_SampleMask is an array of int in SPIR-V.
+    spv::Id type_sample_mask_array =
+        builder_->makeArrayType(type_int_, builder_->makeUintConstant(1), 0);
+    output_fragment_sample_mask_ =
+        builder_->createVariable(spv::NoPrecision, spv::StorageClassOutput,
+                                 type_sample_mask_array, "gl_SampleMask");
+    builder_->addDecoration(output_fragment_sample_mask_,
+                            spv::DecorationBuiltIn,
+                            static_cast<int>(spv::BuiltIn::SampleMask));
+    main_interface_.push_back(output_fragment_sample_mask_);
   }
 }
 

@@ -214,7 +214,10 @@ class SpirvShaderTranslator : public ShaderTranslator {
     float alpha_test_reference;
     uint32_t edram_32bpp_tile_pitch_dwords_scaled;
     uint32_t edram_depth_base_dwords_scaled;
-    float padding_edram_depth_base_dwords_scaled;
+    // If alpha to mask is disabled, the entire alpha_to_mask value must be 0.
+    // If alpha to mask is enabled, bits 0:7 are sample offsets, and bit 8 must
+    // be 1.
+    uint32_t alpha_to_mask;
 
     float color_exp_bias[4];
 
@@ -696,6 +699,16 @@ class SpirvShaderTranslator : public ShaderTranslator {
   // flow because of taking derivatives of the fragment depth.
   void FSI_DepthStencilTest(spv::Id msaa_samples,
                             bool sample_mask_potentially_narrowed_previouly);
+
+  // Alpha to coverage helper - tests one sample.
+  // coverage_out is modified to include this sample if it passes.
+  void FSI_AlphaToMaskSample(bool initialize, uint32_t sample_index,
+                             float threshold_base, spv::Id threshold_offset,
+                             float threshold_offset_scale,
+                             spv::Id& coverage_out);
+
+  // Alpha to coverage main function.
+  void FSI_AlphaToMask();
   // Returns the first and the second 32 bits as two uints.
   std::array<spv::Id, 2> FSI_ClampAndPackColor(spv::Id color_float4,
                                                spv::Id format_with_flags);
@@ -838,6 +851,7 @@ class SpirvShaderTranslator : public ShaderTranslator {
     kSystemConstantTextureSwizzles,
     kSystemConstantTexturesResolved,
     kSystemConstantAlphaTestReference,
+    kSystemConstantAlphaToMask,
     kSystemConstantEdram32bppTilePitchDwordsScaled,
     kSystemConstantEdramDepthBaseDwordsScaled,
     kSystemConstantColorExpBias,
@@ -914,6 +928,11 @@ class SpirvShaderTranslator : public ShaderTranslator {
   // Otherwise, framebuffer color attachment outputs.
   std::array<spv::Id, xenos::kMaxColorRenderTargets>
       output_or_var_fragment_data_;
+
+  // Fragment shader sample mask output (gl_SampleMask).
+  // Only used for alpha-to-coverage in non-FSI mode.
+  // For FSI mode, sample mask is handled via main_fsi_sample_mask_.
+  spv::Id output_fragment_sample_mask_;
 
   std::vector<spv::Id> main_interface_;
   spv::Function* function_main_;
