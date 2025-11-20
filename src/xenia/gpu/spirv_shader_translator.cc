@@ -1980,14 +1980,17 @@ void SpirvShaderTranslator::StartFragmentShaderBeforeMain() {
   }
 
   // Fragment coordinates.
-  // TODO(Triang3l): More conditions - alpha to coverage (if RT 0 is written,
-  // and there's no early depth / stencil), depth writing in the fragment shader
+  // TODO(Triang3l): More conditions - depth writing in the fragment shader
   // (per-sample if supported).
-  // Also needed for alpha-to-mask dithering in FBO mode.
+  // FSI: Always needed for EDRAM offset calculation and depth derivatives.
+  // param_gen: Needed for PsParamGen calculation.
+  // FBO alpha-to-coverage: Needed for dithering pattern, but only when
+  // alpha-to-coverage can actually run (no early fragment tests).
   bool need_frag_coord =
       edram_fragment_shader_interlock_ || param_gen_needed ||
       (!edram_fragment_shader_interlock_ && !is_depth_only_fragment_shader_ &&
-       current_shader().writes_color_target(0));
+       current_shader().writes_color_target(0) &&
+       !IsExecutionModeEarlyFragmentTests());
   if (need_frag_coord) {
     input_fragment_coordinates_ = builder_->createVariable(
         spv::NoPrecision, spv::StorageClassInput, type_float4_, "gl_FragCoord");
