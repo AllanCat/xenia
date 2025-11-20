@@ -704,7 +704,7 @@ class SpirvShaderTranslator : public ShaderTranslator {
   // coverage_out is modified to include this sample if it passes.
   void FSI_AlphaToMaskSample(bool initialize, uint32_t sample_index,
                              float threshold_base, spv::Id threshold_offset,
-                             float threshold_offset_scale,
+                             float threshold_offset_scale, spv::Id alpha,
                              spv::Id& coverage_out);
 
   // Alpha to coverage main function.

@@ -3463,12 +3463,10 @@ spv::Id SpirvShaderTranslator::FSI_BlendColorOrAlphaWithUnclampedResult(
   return builder_->createOp(spv::OpPhi, value_type, id_vector_temp_);
 }
 
-void SpirvShaderTranslator::FSI_AlphaToMaskSample(bool initialize,
-                                                  uint32_t sample_index,
-                                                  float threshold_base,
-                                                  spv::Id threshold_offset,
-                                                  float threshold_offset_scale,
-                                                  spv::Id& coverage_out) {
+void SpirvShaderTranslator::FSI_AlphaToMaskSample(
+    bool initialize, uint32_t sample_index, float threshold_base,
+    spv::Id threshold_offset, float threshold_offset_scale, spv::Id alpha,
+    spv::Id& coverage_out) {
   // Based on D3D12's CompletePixelShader_AlphaToMaskSample.
   // Calculates threshold and tests alpha against it.
   // threshold = threshold_base + threshold_offset * (-threshold_offset_scale)
@@ -3482,41 +3480,32 @@ void SpirvShaderTranslator::FSI_AlphaToMaskSample(bool initialize,
   threshold = builder_->createNoContractionBinOp(
       spv::OpFAdd, type_float_, const_threshold_base, threshold);
 
-  // Load alpha from RT0.w (oC0.w)
-  // Use access chain to get pointer to alpha component, then load
-  assert_true(output_or_var_fragment_data_[0] != spv::NoResult);
-  id_vector_temp_.clear();
-  id_vector_temp_.push_back(builder_->makeIntConstant(3));  // W component
-  spv::Id alpha = builder_->createLoad(
-      builder_->createAccessChain(
-          edram_fragment_shader_interlock_ ? spv::StorageClassFunction
-                                           : spv::StorageClassOutput,
-          output_or_var_fragment_data_[0], id_vector_temp_),
-      spv::NoPrecision);
-
   // Test: alpha >= threshold
   // Using OpFOrdGreaterThanEqual for proper NaN handling (NaN results in false)
   spv::Id sample_passes = builder_->createBinOp(spv::OpFOrdGreaterThanEqual,
                                                 type_bool_, alpha, threshold);
 
   if (edram_fragment_shader_interlock_) {
-    // FSI mode: Start with full coverage, clear bits for failed samples.
-    if (initialize) {
-      coverage_out = builder_->makeUintConstant(0xFFFFFFFFu);
-    }
+    // FSI mode: Clear both coverage and deferred depth bits for failed samples.
+    // This matches the D3D12 ROV implementation which uses ~(0b00010001 <<
+    // sample_index). The test must affect not only the coverage bits (0-3), but
+    // also the deferred depth/stencil write bits (4-7) since if a sample is
+    // discarded by alpha to coverage, it must not be written at all.
 
-    // If sample fails, clear its bit from coverage mask.
-    // Create a mask with the sample bit cleared: ~(1 << sample_index)
-    spv::Id sample_bit = builder_->makeUintConstant(1u << sample_index);
+    // Optimized: Pre-compute the clear mask constant
+    // clear_mask = ~(0b00010001 << sample_index)
     spv::Id clear_mask =
-        builder_->createUnaryOp(spv::OpNot, type_uint_, sample_bit);
+        builder_->makeUintConstant(~(0b00010001u << sample_index));
 
-    // coverage = select(sample_passes, coverage, coverage & clear_mask)
-    spv::Id coverage_cleared = builder_->createBinOp(
-        spv::OpBitwiseAnd, type_uint_, coverage_out, clear_mask);
-    coverage_out =
-        builder_->createTriOp(spv::OpSelect, type_uint_, sample_passes,
-                              coverage_out, coverage_cleared);
+    // If test passes, keep all bits; if test fails, apply clear_mask
+    // This avoids doing OpNot on every call by pre-computing the clear mask
+    spv::Id mask_to_apply = builder_->createTriOp(
+        spv::OpSelect, type_uint_, sample_passes,
+        builder_->makeUintConstant(0xFFFFFFFFu), clear_mask);
+
+    // Apply mask: coverage &= mask_to_apply
+    coverage_out = builder_->createBinOp(spv::OpBitwiseAnd, type_uint_,
+                                         coverage_out, mask_to_apply);
   } else {
     // Non-FSI mode: Start with zero coverage, set bits for passed samples.
     if (initialize) {
@@ -3538,16 +3527,189 @@ void SpirvShaderTranslator::FSI_AlphaToMaskSample(bool initialize,
 void SpirvShaderTranslator::FSI_AlphaToMask() {
   // Based on D3D12's CompletePixelShader_AlphaToMask.
 
-  // TODO(has207): Implement alpha-to-mask for FSI mode.
-  // FSI mode requires proper Phi nodes to merge coverage values from different
-  // MSAA branches, which needs more careful SSA handling.
+  // FSI mode implementation
   if (edram_fragment_shader_interlock_) {
-    return;
-  }
+    // Check if alpha to coverage can be done at all in this shader.
+    if (!current_shader().writes_color_target(0)) {
+      return;
+    }
 
-  // Check if alpha to coverage can be done at all in this shader.
-  if (!current_shader().writes_color_target(0)) {
-    return;
+    // Check if we have the required variables
+    if (main_fsi_sample_mask_ == spv::NoResult) {
+      return;  // Sample mask not available
+    }
+    if (input_fragment_coordinates_ == spv::NoResult) {
+      return;  // Fragment coordinates not available
+    }
+    if (output_or_var_fragment_data_[0] == spv::NoResult) {
+      return;  // RT0 not available
+    }
+
+    // Load alpha_to_mask constant and check if enabled
+    id_vector_temp_.clear();
+    id_vector_temp_.push_back(
+        builder_->makeIntConstant(kSystemConstantAlphaToMask));
+    spv::Id alpha_to_mask_constant = builder_->createLoad(
+        builder_->createAccessChain(spv::StorageClassUniform,
+                                    uniform_system_constants_, id_vector_temp_),
+        spv::NoPrecision);
+
+    spv::Id alpha_to_mask_enabled = builder_->createBinOp(
+        spv::OpINotEqual, type_bool_, alpha_to_mask_constant,
+        builder_->makeUintConstant(0));
+
+    // Save the current block for PHI
+    spv::Block* block_before = builder_->getBuildPoint();
+    spv::Id mask_before = main_fsi_sample_mask_;
+
+    // Create blocks for control flow
+    spv::Block& block_alpha_enabled = builder_->makeNewBlock();
+    spv::Block& block_merge = builder_->makeNewBlock();
+
+    // Set up the conditional branch
+    builder_->createSelectionMerge(&block_merge,
+                                   spv::SelectionControlDontFlattenMask);
+    builder_->createConditionalBranch(alpha_to_mask_enabled,
+                                      &block_alpha_enabled, &block_merge);
+
+    // Alpha to coverage enabled path
+    builder_->setBuildPoint(&block_alpha_enabled);
+
+    // Start with the current sample mask (which includes both coverage bits 0-3
+    // and deferred depth bits 4-7). Alpha to coverage will clear both the
+    // coverage and deferred depth bits for samples that fail the alpha test.
+    // This matches the D3D12 ROV implementation.
+
+    // Extract dithering threshold offset from fragment position
+    spv::Id frag_coord =
+        builder_->createLoad(input_fragment_coordinates_, spv::NoPrecision);
+
+    spv::Id frag_x_float =
+        builder_->createCompositeExtract(frag_coord, type_float_, 0);
+    spv::Id frag_y_float =
+        builder_->createCompositeExtract(frag_coord, type_float_, 1);
+
+    spv::Id frag_x =
+        builder_->createUnaryOp(spv::OpConvertFToU, type_uint_, frag_x_float);
+    spv::Id frag_y =
+        builder_->createUnaryOp(spv::OpConvertFToU, type_uint_, frag_y_float);
+
+    // Calculate dithering offset: (Y & 1) | ((X & 1) << 1)
+    spv::Id y_bit = builder_->createBinOp(spv::OpBitwiseAnd, type_uint_, frag_y,
+                                          builder_->makeUintConstant(1));
+    spv::Id x_bit = builder_->createBinOp(spv::OpBitwiseAnd, type_uint_, frag_x,
+                                          builder_->makeUintConstant(1));
+    spv::Id x_bit_shifted =
+        builder_->createBinOp(spv::OpShiftLeftLogical, type_uint_, x_bit,
+                              builder_->makeUintConstant(1));
+    spv::Id offset_index = builder_->createBinOp(spv::OpBitwiseOr, type_uint_,
+                                                 y_bit, x_bit_shifted);
+
+    // Extract 2-bit offset from alpha_to_mask constant
+    spv::Id bit_position =
+        builder_->createBinOp(spv::OpShiftLeftLogical, type_uint_, offset_index,
+                              builder_->makeUintConstant(1));
+    spv::Id offset_shifted =
+        builder_->createBinOp(spv::OpShiftRightLogical, type_uint_,
+                              alpha_to_mask_constant, bit_position);
+    spv::Id threshold_offset_uint =
+        builder_->createBinOp(spv::OpBitwiseAnd, type_uint_, offset_shifted,
+                              builder_->makeUintConstant(0b11));
+    spv::Id threshold_offset = builder_->createUnaryOp(
+        spv::OpConvertUToF, type_float_, threshold_offset_uint);
+
+    // Load alpha from RT0.w (oC0.w) once for all samples (optimization)
+    assert_true(output_or_var_fragment_data_[0] != spv::NoResult);
+    id_vector_temp_.clear();
+    id_vector_temp_.push_back(builder_->makeIntConstant(3));  // W component
+    spv::Id alpha = builder_->createLoad(
+        builder_->createAccessChain(spv::StorageClassFunction,
+                                    output_or_var_fragment_data_[0],
+                                    id_vector_temp_),
+        spv::NoPrecision);
+
+    // Load MSAA sample count
+    spv::Id msaa_samples = LoadMsaaSamplesFromFlags();
+
+    // Create blocks for MSAA sample count selection
+    spv::Block& block_msaa_1x = builder_->makeNewBlock();
+    spv::Block& block_msaa_2x_actual = builder_->makeNewBlock();
+    spv::Block& block_msaa_4x = builder_->makeNewBlock();
+    spv::Block& block_msaa_check_2x = builder_->makeNewBlock();
+    spv::Block& block_msaa_merge = builder_->makeNewBlock();
+
+    // Check if 4x MSAA
+    spv::Id is_4x = builder_->createBinOp(
+        spv::OpIEqual, type_bool_, msaa_samples, builder_->makeUintConstant(2));
+
+    // Create selection for MSAA mode
+    builder_->createSelectionMerge(&block_msaa_merge,
+                                   spv::SelectionControlDontFlattenMask);
+    builder_->createConditionalBranch(is_4x, &block_msaa_4x,
+                                      &block_msaa_check_2x);
+
+    // 4x MSAA path
+    builder_->setBuildPoint(&block_msaa_4x);
+    spv::Id coverage_4x = main_fsi_sample_mask_;
+    FSI_AlphaToMaskSample(false, 0, 0.75f, threshold_offset, 1.0f / 16.0f,
+                          alpha, coverage_4x);
+    FSI_AlphaToMaskSample(false, 1, 0.25f, threshold_offset, 1.0f / 16.0f,
+                          alpha, coverage_4x);
+    FSI_AlphaToMaskSample(false, 2, 0.5f, threshold_offset, 1.0f / 16.0f, alpha,
+                          coverage_4x);
+    FSI_AlphaToMaskSample(false, 3, 1.0f, threshold_offset, 1.0f / 16.0f, alpha,
+                          coverage_4x);
+    builder_->createBranch(&block_msaa_merge);
+
+    // Check if 2x or 1x MSAA
+    builder_->setBuildPoint(&block_msaa_check_2x);
+    spv::Id is_2x = builder_->createBinOp(
+        spv::OpIEqual, type_bool_, msaa_samples, builder_->makeUintConstant(1));
+    builder_->createConditionalBranch(is_2x, &block_msaa_2x_actual,
+                                      &block_msaa_1x);
+
+    // 2x MSAA path
+    builder_->setBuildPoint(&block_msaa_2x_actual);
+    spv::Id coverage_2x = main_fsi_sample_mask_;
+    FSI_AlphaToMaskSample(false, 0, 0.5f, threshold_offset, 1.0f / 8.0f, alpha,
+                          coverage_2x);
+    FSI_AlphaToMaskSample(false, 1, 1.0f, threshold_offset, 1.0f / 8.0f, alpha,
+                          coverage_2x);
+    builder_->createBranch(&block_msaa_merge);
+
+    // 1x MSAA path
+    builder_->setBuildPoint(&block_msaa_1x);
+    spv::Id coverage_1x = main_fsi_sample_mask_;
+    FSI_AlphaToMaskSample(false, 0, 1.0f, threshold_offset, 1.0f / 4.0f, alpha,
+                          coverage_1x);
+    builder_->createBranch(&block_msaa_merge);
+
+    // Merge MSAA paths with PHI
+    builder_->setBuildPoint(&block_msaa_merge);
+    id_vector_temp_.clear();
+    id_vector_temp_.push_back(coverage_4x);
+    id_vector_temp_.push_back(block_msaa_4x.getId());
+    id_vector_temp_.push_back(coverage_2x);
+    id_vector_temp_.push_back(block_msaa_2x_actual.getId());
+    id_vector_temp_.push_back(coverage_1x);
+    id_vector_temp_.push_back(block_msaa_1x.getId());
+    spv::Id coverage_final =
+        builder_->createOp(spv::OpPhi, type_uint_, id_vector_temp_);
+
+    // Branch to main merge
+    builder_->createBranch(&block_merge);
+
+    // Continue from merge block with PHI for the final mask
+    builder_->setBuildPoint(&block_merge);
+    id_vector_temp_.clear();
+    id_vector_temp_.push_back(coverage_final);
+    id_vector_temp_.push_back(
+        block_msaa_merge.getId());  // Coming from the alpha enabled path
+    id_vector_temp_.push_back(mask_before);
+    id_vector_temp_.push_back(
+        block_before->getId());  // Coming from the disabled path
+    main_fsi_sample_mask_ =
+        builder_->createOp(spv::OpPhi, type_uint_, id_vector_temp_);
   }
 
   // For FBO mode, ensure gl_SampleMask output was created
@@ -3638,6 +3800,16 @@ void SpirvShaderTranslator::FSI_AlphaToMask() {
   spv::Id threshold_offset = builder_->createUnaryOp(
       spv::OpConvertUToF, type_float_, threshold_offset_uint);
 
+  // Load alpha from RT0.w (oC0.w) once for all samples (optimization)
+  id_vector_temp_.clear();
+  id_vector_temp_.push_back(builder_->makeIntConstant(3));  // W component
+  spv::Id alpha = builder_->createLoad(
+      builder_->createAccessChain(
+          edram_fragment_shader_interlock_ ? spv::StorageClassFunction
+                                           : spv::StorageClassOutput,
+          output_or_var_fragment_data_[0], id_vector_temp_),
+      spv::NoPrecision);
+
   // Load MSAA sample count to determine which mode to use.
   // 0 = 1x, 1 = 2x, 2 = 4x
   spv::Id msaa_samples = LoadMsaaSamplesFromFlags();
@@ -3675,13 +3847,13 @@ void SpirvShaderTranslator::FSI_AlphaToMask() {
   // 4x MSAA
   builder_->setBuildPoint(&block_4x_msaa);
   spv::Id coverage_4x = spv::NoResult;
-  FSI_AlphaToMaskSample(true, 0, 0.75f, threshold_offset, 1.0f / 16.0f,
+  FSI_AlphaToMaskSample(true, 0, 0.75f, threshold_offset, 1.0f / 16.0f, alpha,
                         coverage_4x);
-  FSI_AlphaToMaskSample(false, 1, 0.25f, threshold_offset, 1.0f / 16.0f,
+  FSI_AlphaToMaskSample(false, 1, 0.25f, threshold_offset, 1.0f / 16.0f, alpha,
                         coverage_4x);
-  FSI_AlphaToMaskSample(false, 2, 0.5f, threshold_offset, 1.0f / 16.0f,
+  FSI_AlphaToMaskSample(false, 2, 0.5f, threshold_offset, 1.0f / 16.0f, alpha,
                         coverage_4x);
-  FSI_AlphaToMaskSample(false, 3, 1.0f, threshold_offset, 1.0f / 16.0f,
+  FSI_AlphaToMaskSample(false, 3, 1.0f, threshold_offset, 1.0f / 16.0f, alpha,
                         coverage_4x);
   builder_->createBranch(&block_msaa_mode_merge);
 
@@ -3694,24 +3866,24 @@ void SpirvShaderTranslator::FSI_AlphaToMask() {
   // - 2x as 4x: host samples 0, 3
   if (edram_fragment_shader_interlock_) {
     // FSI: Use guest indices 0, 1.
-    FSI_AlphaToMaskSample(true, 0, 0.5f, threshold_offset, 1.0f / 8.0f,
+    FSI_AlphaToMaskSample(true, 0, 0.5f, threshold_offset, 1.0f / 8.0f, alpha,
                           coverage_2x);
-    FSI_AlphaToMaskSample(false, 1, 1.0f, threshold_offset, 1.0f / 8.0f,
+    FSI_AlphaToMaskSample(false, 1, 1.0f, threshold_offset, 1.0f / 8.0f, alpha,
                           coverage_2x);
   } else {
     // FBO: Account for native 2x vs 2x-as-4x sample mapping.
     if (native_2x_msaa_no_attachments_) {
       // Native 2x: D3D10.1+ standard - top is 1, bottom is 0.
-      FSI_AlphaToMaskSample(true, 1, 0.5f, threshold_offset, 1.0f / 8.0f,
+      FSI_AlphaToMaskSample(true, 1, 0.5f, threshold_offset, 1.0f / 8.0f, alpha,
                             coverage_2x);
       FSI_AlphaToMaskSample(false, 0, 1.0f, threshold_offset, 1.0f / 8.0f,
-                            coverage_2x);
+                            alpha, coverage_2x);
     } else {
       // 2x as 4x: Use samples 0 and 3.
-      FSI_AlphaToMaskSample(true, 0, 0.5f, threshold_offset, 1.0f / 8.0f,
+      FSI_AlphaToMaskSample(true, 0, 0.5f, threshold_offset, 1.0f / 8.0f, alpha,
                             coverage_2x);
       FSI_AlphaToMaskSample(false, 3, 1.0f, threshold_offset, 1.0f / 8.0f,
-                            coverage_2x);
+                            alpha, coverage_2x);
     }
   }
   builder_->createBranch(&block_msaa_mode_merge);
@@ -3731,7 +3903,7 @@ void SpirvShaderTranslator::FSI_AlphaToMask() {
   // MSAA disabled - single sample
   builder_->setBuildPoint(&block_msaa_disabled);
   spv::Id coverage_1x = spv::NoResult;
-  FSI_AlphaToMaskSample(true, 0, 1.0f, threshold_offset, 1.0f / 4.0f,
+  FSI_AlphaToMaskSample(true, 0, 1.0f, threshold_offset, 1.0f / 4.0f, alpha,
                         coverage_1x);
   builder_->createBranch(&block_msaa_merge);
 
