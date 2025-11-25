@@ -143,6 +143,8 @@ void SpirvShaderTranslator::Reset() {
   var_main_point_size_edge_flag_kill_vertex_ = spv::NoResult;
   var_main_kill_pixel_ = spv::NoResult;
   var_main_fsi_color_written_ = spv::NoResult;
+  std::fill(output_fragment_data_.begin(), output_fragment_data_.end(),
+            spv::NoResult);
 
   main_switch_op_.reset();
   main_switch_next_pc_phi_operands_.clear();
@@ -2234,10 +2236,14 @@ void SpirvShaderTranslator::StartFragmentShaderBeforeMain() {
   }
 
   if (!is_depth_only_fragment_shader_) {
-    // Framebuffer color attachment outputs.
+    // Framebuffer color attachment outputs (FBO path only).
+    // For FBO, we create Output variables here and Function-scoped variables
+    // in StartFragmentShaderInMain. The Function-scoped variables are used
+    // throughout the shader (so we can read them for alpha test), and copied
+    // to the Output variables at the end.
     if (!edram_fragment_shader_interlock_) {
-      std::fill(output_or_var_fragment_data_.begin(),
-                output_or_var_fragment_data_.end(), spv::NoResult);
+      std::fill(output_fragment_data_.begin(), output_fragment_data_.end(),
+                spv::NoResult);
       static const char* const kFragmentDataOutputNames[] = {
           "xe_out_fragment_data_0",
           "xe_out_fragment_data_1",
@@ -2253,8 +2259,7 @@ void SpirvShaderTranslator::StartFragmentShaderBeforeMain() {
         spv::Id output_fragment_data_rt = builder_->createVariable(
             spv::NoPrecision, spv::StorageClassOutput, type_float4_,
             kFragmentDataOutputNames[color_target_index]);
-        output_or_var_fragment_data_[color_target_index] =
-            output_fragment_data_rt;
+        output_fragment_data_[color_target_index] = output_fragment_data_rt;
         builder_->addDecoration(output_fragment_data_rt,
                                 spv::DecorationLocation,
                                 int(color_target_index));
@@ -2311,33 +2316,45 @@ void SpirvShaderTranslator::StartFragmentShaderInMain() {
     // to the execution mask GPUs naturally have.
   }
 
+  // Initialize color output variables as Function-scoped for both FSI and FBO.
+  // For FBO, this allows reading the color values back (e.g., for alpha test),
+  // which isn't possible with Output storage class. The values are copied to
+  // the actual Output variables at the end of the shader for FBO.
+  std::fill(output_or_var_fragment_data_.begin(),
+            output_or_var_fragment_data_.end(), spv::NoResult);
+  var_main_fsi_color_written_ = spv::NoResult;
+  uint32_t color_targets_written = current_shader().writes_color_targets();
+  if (color_targets_written && !is_depth_only_fragment_shader_) {
+    static const char* const kFragmentDataVariableNames[] = {
+        "xe_var_fragment_data_0",
+        "xe_var_fragment_data_1",
+        "xe_var_fragment_data_2",
+        "xe_var_fragment_data_3",
+    };
+    uint32_t color_targets_remaining = color_targets_written;
+    uint32_t color_target_index;
+    while (xe::bit_scan_forward(color_targets_remaining, &color_target_index)) {
+      color_targets_remaining &= ~(UINT32_C(1) << color_target_index);
+      output_or_var_fragment_data_[color_target_index] =
+          builder_->createVariable(
+              spv::NoPrecision, spv::StorageClassFunction, type_float4_,
+              kFragmentDataVariableNames[color_target_index], const_float4_0_);
+    }
+    // Color write tracking for both FSI and FBO paths.
+    // This is used to conditionally skip alpha test / alpha-to-coverage if
+    // render target 0 wasn't written on the execution path.
+    var_main_fsi_color_written_ = builder_->createVariable(
+        spv::NoPrecision, spv::StorageClassFunction, type_uint_,
+        "xe_var_color_written", const_uint_0_);
+  }
+
   if (edram_fragment_shader_interlock_) {
-    // Initialize color output variables with fragment shader interlock.
-    std::fill(output_or_var_fragment_data_.begin(),
-              output_or_var_fragment_data_.end(), spv::NoResult);
-    var_main_fsi_color_written_ = spv::NoResult;
-    uint32_t color_targets_written = current_shader().writes_color_targets();
-    if (color_targets_written) {
-      static const char* const kFragmentDataVariableNames[] = {
-          "xe_var_fragment_data_0",
-          "xe_var_fragment_data_1",
-          "xe_var_fragment_data_2",
-          "xe_var_fragment_data_3",
-      };
-      uint32_t color_targets_remaining = color_targets_written;
-      uint32_t color_target_index;
-      while (
-          xe::bit_scan_forward(color_targets_remaining, &color_target_index)) {
-        color_targets_remaining &= ~(UINT32_C(1) << color_target_index);
-        output_or_var_fragment_data_[color_target_index] =
-            builder_->createVariable(
-                spv::NoPrecision, spv::StorageClassFunction, type_float4_,
-                kFragmentDataVariableNames[color_target_index],
-                const_float4_0_);
-      }
-      var_main_fsi_color_written_ = builder_->createVariable(
-          spv::NoPrecision, spv::StorageClassFunction, type_uint_,
-          "xe_var_fsi_color_written", const_uint_0_);
+    // Initialize depth output variable with fragment shader interlock.
+    output_or_var_fragment_depth_ = spv::NoResult;
+    if (current_shader().writes_depth()) {
+      output_or_var_fragment_depth_ = builder_->createVariable(
+          spv::NoPrecision, spv::StorageClassFunction, type_float_,
+          "xe_var_fragment_depth", const_float_0_);
     }
   }
 
@@ -2553,16 +2570,6 @@ void SpirvShaderTranslator::StartFragmentShaderInMain() {
     builder_->createStore(param_gen, builder_->createAccessChain(
                                          spv::StorageClassFunction,
                                          var_main_registers_, id_vector_temp_));
-  }
-
-  if (!edram_fragment_shader_interlock_) {
-    // Initialize the colors for safety.
-    for (uint32_t i = 0; i < xenos::kMaxColorRenderTargets; ++i) {
-      spv::Id output_fragment_data_rt = output_or_var_fragment_data_[i];
-      if (output_fragment_data_rt != spv::NoResult) {
-        builder_->createStore(const_float4_0_, output_fragment_data_rt);
-      }
-    }
   }
 }
 
@@ -2923,8 +2930,7 @@ void SpirvShaderTranslator::StoreResult(const InstructionResult& result,
       assert_not_zero(used_write_mask);
       assert_true(current_shader().writes_color_target(result.storage_index));
       target_pointer = output_or_var_fragment_data_[result.storage_index];
-      if (edram_fragment_shader_interlock_) {
-        assert_true(var_main_fsi_color_written_ != spv::NoResult);
+      if (var_main_fsi_color_written_ != spv::NoResult) {
         builder_->createStore(
             builder_->createBinOp(
                 spv::OpBitwiseOr, type_uint_,

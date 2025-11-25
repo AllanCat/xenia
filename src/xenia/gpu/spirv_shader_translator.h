@@ -947,10 +947,22 @@ class SpirvShaderTranslator : public ShaderTranslator {
   unsigned int output_per_vertex_clip_distance_member_index_ = 0;
   unsigned int output_per_vertex_cull_distance_member_index_ = 0;
 
-  // With fragment shader interlock, variables in the main function.
-  // Otherwise, framebuffer color attachment outputs.
+  // Function-scoped variables for fragment color data.
+  // Used by both FSI and FBO paths so that color values can be read back
+  // (e.g., for alpha test). For FBO, these are copied to output_fragment_data_
+  // at the end of the shader.
   std::array<spv::Id, xenos::kMaxColorRenderTargets>
       output_or_var_fragment_data_;
+
+  // FBO only: Actual framebuffer color attachment outputs (Output storage).
+  // These are write-only and populated at the end of the shader from
+  // output_or_var_fragment_data_.
+  std::array<spv::Id, xenos::kMaxColorRenderTargets> output_fragment_data_;
+
+  // Fragment shader depth output (gl_FragDepth).
+  // With fragment shader interlock, a variable in the main function.
+  // Otherwise, the depth output (only created if shader writes depth).
+  spv::Id output_or_var_fragment_depth_;
 
   // Fragment shader sample mask output (gl_SampleMask).
   // Only used for alpha-to-coverage in non-FSI mode.
@@ -999,11 +1011,12 @@ class SpirvShaderTranslator : public ShaderTranslator {
   spv::Id var_main_point_size_edge_flag_kill_vertex_;
   // PS, only when needed - bool.
   spv::Id var_main_kill_pixel_;
-  // PS, only when writing to color render targets with fragment shader
-  // interlock - uint.
+  // PS, when writing to color render targets - uint.
   // Whether color buffers have been written to, if not written on the taken
   // execution path, don't export according to Direct3D 9 register documentation
   // (some games rely on this behavior).
+  // Used by both FSI and FBO paths for proper alpha test / alpha-to-coverage
+  // behavior.
   spv::Id var_main_fsi_color_written_;
   // Loaded by FSI_LoadSampleMask.
   // Can be modified on the outermost control flow level in the main function.

@@ -472,13 +472,15 @@ void SpirvShaderTranslator::CompleteFragmentShaderInMain() {
 
   if ((color_targets_written & 0b1) && !IsExecutionModeEarlyFragmentTests()) {
     spv::Id fsi_sample_mask_in_rt_0_alpha_tests = spv::NoResult;
-    spv::Block* block_fsi_rt_0_alpha_tests_rt_written_head = nullptr;
-    spv::Block* block_fsi_rt_0_alpha_tests_rt_written_merge = nullptr;
+    spv::Block* block_rt_0_alpha_tests_rt_written_head = nullptr;
+    spv::Block* block_rt_0_alpha_tests_rt_written_merge = nullptr;
     builder_->makeNewBlock();
-    if (edram_fragment_shader_interlock_) {
+    if (var_main_fsi_color_written_ != spv::NoResult) {
       // Skip the alpha test and alpha to coverage if the render target 0 is not
-      // written to dynamically.
-      fsi_sample_mask_in_rt_0_alpha_tests = main_fsi_sample_mask_;
+      // written to dynamically. This check is used by both FSI and FBO paths.
+      if (edram_fragment_shader_interlock_) {
+        fsi_sample_mask_in_rt_0_alpha_tests = main_fsi_sample_mask_;
+      }
       spv::Id rt_0_written = builder_->createBinOp(
           spv::OpINotEqual, type_bool_,
           builder_->createBinOp(
@@ -487,32 +489,30 @@ void SpirvShaderTranslator::CompleteFragmentShaderInMain() {
                                    spv::NoPrecision),
               builder_->makeUintConstant(0b1)),
           const_uint_0_);
-      block_fsi_rt_0_alpha_tests_rt_written_head = builder_->getBuildPoint();
-      spv::Block& block_fsi_rt_0_alpha_tests_rt_written =
-          builder_->makeNewBlock();
-      block_fsi_rt_0_alpha_tests_rt_written_merge = &builder_->makeNewBlock();
-      builder_->createSelectionMerge(
-          block_fsi_rt_0_alpha_tests_rt_written_merge,
-          spv::SelectionControlDontFlattenMask);
+      block_rt_0_alpha_tests_rt_written_head = builder_->getBuildPoint();
+      spv::Block& block_rt_0_alpha_tests_rt_written = builder_->makeNewBlock();
+      block_rt_0_alpha_tests_rt_written_merge = &builder_->makeNewBlock();
+      builder_->createSelectionMerge(block_rt_0_alpha_tests_rt_written_merge,
+                                     spv::SelectionControlDontFlattenMask);
       {
         std::unique_ptr<spv::Instruction> rt_0_written_branch_conditional_op =
             std::make_unique<spv::Instruction>(spv::OpBranchConditional);
         rt_0_written_branch_conditional_op->addIdOperand(rt_0_written);
         rt_0_written_branch_conditional_op->addIdOperand(
-            block_fsi_rt_0_alpha_tests_rt_written.getId());
+            block_rt_0_alpha_tests_rt_written.getId());
         rt_0_written_branch_conditional_op->addIdOperand(
-            block_fsi_rt_0_alpha_tests_rt_written_merge->getId());
+            block_rt_0_alpha_tests_rt_written_merge->getId());
         // More likely to write to the render target 0 than not.
         rt_0_written_branch_conditional_op->addImmediateOperand(2);
         rt_0_written_branch_conditional_op->addImmediateOperand(1);
         builder_->getBuildPoint()->addInstruction(
             std::move(rt_0_written_branch_conditional_op));
       }
-      block_fsi_rt_0_alpha_tests_rt_written.addPredecessor(
-          block_fsi_rt_0_alpha_tests_rt_written_head);
-      block_fsi_rt_0_alpha_tests_rt_written_merge->addPredecessor(
-          block_fsi_rt_0_alpha_tests_rt_written_head);
-      builder_->setBuildPoint(&block_fsi_rt_0_alpha_tests_rt_written);
+      block_rt_0_alpha_tests_rt_written.addPredecessor(
+          block_rt_0_alpha_tests_rt_written_head);
+      block_rt_0_alpha_tests_rt_written_merge->addPredecessor(
+          block_rt_0_alpha_tests_rt_written_head);
+      builder_->setBuildPoint(&block_rt_0_alpha_tests_rt_written);
     }
 
     // Alpha test.
@@ -533,10 +533,9 @@ void SpirvShaderTranslator::CompleteFragmentShaderInMain() {
       id_vector_temp_.clear();
       id_vector_temp_.push_back(builder_->makeIntConstant(3));
       spv::Id alpha_test_alpha = builder_->createLoad(
-          builder_->createAccessChain(
-              edram_fragment_shader_interlock_ ? spv::StorageClassFunction
-                                               : spv::StorageClassOutput,
-              output_or_var_fragment_data_[0], id_vector_temp_),
+          builder_->createAccessChain(spv::StorageClassFunction,
+                                      output_or_var_fragment_data_[0],
+                                      id_vector_temp_),
           spv::NoPrecision);
       id_vector_temp_.clear();
       id_vector_temp_.push_back(
@@ -627,22 +626,23 @@ void SpirvShaderTranslator::CompleteFragmentShaderInMain() {
     // Alpha to coverage.
     FSI_AlphaToMask();
 
-    if (edram_fragment_shader_interlock_) {
-      // Close the render target 0 written check.
-      builder_->createBranch(block_fsi_rt_0_alpha_tests_rt_written_merge);
-      spv::Block& block_fsi_rt_0_alpha_tests_rt_written_end =
+    if (block_rt_0_alpha_tests_rt_written_merge) {
+      // Close the render target 0 written check (used by both FSI and FBO).
+      builder_->createBranch(block_rt_0_alpha_tests_rt_written_merge);
+      spv::Block& block_rt_0_alpha_tests_rt_written_end =
           *builder_->getBuildPoint();
-      builder_->setBuildPoint(block_fsi_rt_0_alpha_tests_rt_written_merge);
-      if (!features_.demote_to_helper_invocation) {
+      builder_->setBuildPoint(block_rt_0_alpha_tests_rt_written_merge);
+      if (edram_fragment_shader_interlock_ &&
+          !features_.demote_to_helper_invocation) {
         // The tests might have modified the sample mask via
         // fsi_sample_mask_in_rt_0_alpha_tests.
         id_vector_temp_.clear();
         id_vector_temp_.push_back(fsi_sample_mask_in_rt_0_alpha_tests);
         id_vector_temp_.push_back(
-            block_fsi_rt_0_alpha_tests_rt_written_end.getId());
+            block_rt_0_alpha_tests_rt_written_end.getId());
         id_vector_temp_.push_back(main_fsi_sample_mask_);
         id_vector_temp_.push_back(
-            block_fsi_rt_0_alpha_tests_rt_written_head->getId());
+            block_rt_0_alpha_tests_rt_written_head->getId());
         main_fsi_sample_mask_ =
             builder_->createOp(spv::OpPhi, type_uint_, id_vector_temp_);
       }
@@ -1293,6 +1293,23 @@ void SpirvShaderTranslator::CompleteFragmentShaderInMain() {
         }
 
         builder_->createStore(color, color_variable);
+      }
+    }
+  }
+
+  if (!edram_fragment_shader_interlock_) {
+    // FBO path: Copy from Function-scoped variables to Output variables.
+    // This is done at the end after alpha test/coverage so we can read the
+    // color values during those operations.
+    uint32_t color_targets_to_copy = current_shader().writes_color_targets();
+    uint32_t color_target_index;
+    while (xe::bit_scan_forward(color_targets_to_copy, &color_target_index)) {
+      color_targets_to_copy &= ~(UINT32_C(1) << color_target_index);
+      spv::Id var_color = output_or_var_fragment_data_[color_target_index];
+      spv::Id out_color = output_fragment_data_[color_target_index];
+      if (var_color != spv::NoResult && out_color != spv::NoResult) {
+        builder_->createStore(builder_->createLoad(var_color, spv::NoPrecision),
+                              out_color);
       }
     }
   }
@@ -3808,10 +3825,9 @@ void SpirvShaderTranslator::FSI_AlphaToMask() {
   id_vector_temp_.clear();
   id_vector_temp_.push_back(builder_->makeIntConstant(3));  // W component
   spv::Id alpha = builder_->createLoad(
-      builder_->createAccessChain(
-          edram_fragment_shader_interlock_ ? spv::StorageClassFunction
-                                           : spv::StorageClassOutput,
-          output_or_var_fragment_data_[0], id_vector_temp_),
+      builder_->createAccessChain(spv::StorageClassFunction,
+                                  output_or_var_fragment_data_[0],
+                                  id_vector_temp_),
       spv::NoPrecision);
 
   // Load MSAA sample count to determine which mode to use.
