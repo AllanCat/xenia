@@ -520,6 +520,7 @@ bool VulkanRenderTargetCache::Initialize(uint32_t shared_memory_binding_count) {
     // Host render targets.
 
     depth_float24_round_ = cvars::depth_float24_round;
+    gamma_render_target_as_srgb_ = cvars::gamma_render_target_as_srgb;
 
     // Host depth storing pipeline layout.
     VkDescriptorSetLayout host_depth_store_descriptor_set_layouts[] = {

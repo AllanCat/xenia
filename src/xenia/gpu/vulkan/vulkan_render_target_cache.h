@@ -155,6 +155,9 @@ class VulkanRenderTargetCache final : public RenderTargetCache {
     return depth_unorm24_vulkan_format_supported_;
   }
   bool depth_float24_round() const { return depth_float24_round_; }
+  bool gamma_render_target_as_srgb() const {
+    return gamma_render_target_as_srgb_;
+  }
 
   bool msaa_2x_attachments_supported() const {
     return msaa_2x_attachments_supported_;

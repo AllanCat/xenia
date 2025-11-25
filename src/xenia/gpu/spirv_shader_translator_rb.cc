@@ -1251,41 +1251,45 @@ void SpirvShaderTranslator::CompleteFragmentShaderInMain() {
         if_rt_write_mask_not_empty.makeEndIf();
         if_fsi_color_written.makeEndIf();
       } else {
-        // Convert to gamma space - this is incorrect, since it must be done
-        // after blending on the Xbox 360, but this is just one of many blending
-        // issues in the host render target path.
-        // TODO(Triang3l): Gamma as sRGB check.
-        uint_vector_temp_.clear();
-        uint_vector_temp_.push_back(0);
-        uint_vector_temp_.push_back(1);
-        uint_vector_temp_.push_back(2);
-        spv::Id color_rgb = builder_->createRvalueSwizzle(
-            spv::NoPrecision, type_float3_, color, uint_vector_temp_);
-        spv::Id is_gamma = builder_->createBinOp(
-            spv::OpINotEqual, type_bool_,
-            builder_->createBinOp(
-                spv::OpBitwiseAnd, type_uint_, main_system_constant_flags_,
-                builder_->makeUintConstant(kSysFlag_ConvertColor0ToGamma
-                                           << color_target_index)),
-            const_uint_0_);
-        SpirvBuilder::IfBuilder if_gamma(
-            is_gamma, spv::SelectionControlDontFlattenMask, *builder_);
-        spv::Id color_rgb_gamma = LinearToPWLGamma(color_rgb, false);
-        if_gamma.makeEndIf();
-        color_rgb = if_gamma.createMergePhi(color_rgb_gamma, color_rgb);
-        {
-          std::unique_ptr<spv::Instruction> color_rgba_shuffle_op =
-              std::make_unique<spv::Instruction>(
-                  builder_->getUniqueId(), type_float4_, spv::OpVectorShuffle);
-          color_rgba_shuffle_op->addIdOperand(color_rgb);
-          color_rgba_shuffle_op->addIdOperand(color);
-          color_rgba_shuffle_op->addImmediateOperand(0);
-          color_rgba_shuffle_op->addImmediateOperand(1);
-          color_rgba_shuffle_op->addImmediateOperand(2);
-          color_rgba_shuffle_op->addImmediateOperand(3 + 3);
-          color = color_rgba_shuffle_op->getResultId();
-          builder_->getBuildPoint()->addInstruction(
-              std::move(color_rgba_shuffle_op));
+        if (!gamma_render_target_as_srgb_) {
+          // Convert to gamma space - this is incorrect, since it must be done
+          // after blending on the Xbox 360, but this is just one of many
+          // blending issues in the host render target path. When
+          // gamma_render_target_as_srgb_ is enabled, the host handles gamma
+          // conversion via sRGB render target format after blending.
+          uint_vector_temp_.clear();
+          uint_vector_temp_.push_back(0);
+          uint_vector_temp_.push_back(1);
+          uint_vector_temp_.push_back(2);
+          spv::Id color_rgb = builder_->createRvalueSwizzle(
+              spv::NoPrecision, type_float3_, color, uint_vector_temp_);
+          spv::Id is_gamma = builder_->createBinOp(
+              spv::OpINotEqual, type_bool_,
+              builder_->createBinOp(
+                  spv::OpBitwiseAnd, type_uint_, main_system_constant_flags_,
+                  builder_->makeUintConstant(kSysFlag_ConvertColor0ToGamma
+                                             << color_target_index)),
+              const_uint_0_);
+          SpirvBuilder::IfBuilder if_gamma(
+              is_gamma, spv::SelectionControlDontFlattenMask, *builder_);
+          spv::Id color_rgb_gamma = LinearToPWLGamma(color_rgb, false);
+          if_gamma.makeEndIf();
+          color_rgb = if_gamma.createMergePhi(color_rgb_gamma, color_rgb);
+          {
+            std::unique_ptr<spv::Instruction> color_rgba_shuffle_op =
+                std::make_unique<spv::Instruction>(builder_->getUniqueId(),
+                                                   type_float4_,
+                                                   spv::OpVectorShuffle);
+            color_rgba_shuffle_op->addIdOperand(color_rgb);
+            color_rgba_shuffle_op->addIdOperand(color);
+            color_rgba_shuffle_op->addImmediateOperand(0);
+            color_rgba_shuffle_op->addImmediateOperand(1);
+            color_rgba_shuffle_op->addImmediateOperand(2);
+            color_rgba_shuffle_op->addImmediateOperand(3 + 3);
+            color = color_rgba_shuffle_op->getResultId();
+            builder_->getBuildPoint()->addInstruction(
+                std::move(color_rgba_shuffle_op));
+          }
         }
 
         builder_->createStore(color, color_variable);
