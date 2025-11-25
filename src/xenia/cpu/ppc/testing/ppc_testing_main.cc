@@ -431,15 +431,20 @@ TestResult RunTestInChildProcess(TestSuite& test_suite, TestCase& test_case) {
 
   if (pid == 0) {
     // Child process - create a fresh TestRunner to avoid inherited state issues
-    TestRunner child_runner;
-    if (!child_runner.Setup(test_suite)) {
-      _exit(2);  // Setup failure
-    }
-    if (child_runner.Run(test_case)) {
-      _exit(0);  // Test passed
-    } else {
-      _exit(1);  // Test failed
-    }
+    // Use a scope block to ensure destructors run before _exit(),
+    // otherwise shared memory objects in /dev/shm are never cleaned up.
+    int exit_code;
+    {
+      TestRunner child_runner;
+      if (!child_runner.Setup(test_suite)) {
+        exit_code = 2;  // Setup failure
+      } else if (child_runner.Run(test_case)) {
+        exit_code = 0;  // Test passed
+      } else {
+        exit_code = 1;  // Test failed
+      }
+    }  // child_runner destructor runs here, cleaning up shm
+    _exit(exit_code);
   }
 
   // Parent process - wait for child
