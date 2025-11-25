@@ -21,6 +21,11 @@
 #include "xenia/cpu/processor.h"
 #include "xenia/cpu/raw_module.h"
 
+#include <atomic>
+#include <mutex>
+#include <thread>
+#include <unordered_set>
+
 #if XE_ARCH_AMD64
 #include "xenia/cpu/backend/x64/x64_backend.h"
 #endif  // XE_ARCH
@@ -36,6 +41,8 @@ DEFINE_path(test_path, "src/xenia/cpu/ppc/testing/",
             "Directory scanned for test files.", "Other");
 DEFINE_path(test_bin_path, "src/xenia/cpu/ppc/testing/bin/",
             "Directory with binary outputs of the test files.", "Other");
+DEFINE_path(test_skip_file, "src/xenia/cpu/ppc/testing/skip.txt",
+            "File containing test case names to skip (one per line).", "Other");
 DEFINE_transient_string(test_name, "", "Test suite name.", "General");
 
 namespace xe {
@@ -48,6 +55,39 @@ using namespace xe::literals;
 typedef std::vector<std::pair<std::string, std::string>> AnnotationList;
 
 constexpr uint32_t START_ADDRESS = 0x80000000;
+
+// Load skip list from file
+std::unordered_set<std::string> LoadSkipList(
+    const std::filesystem::path& skip_file_path) {
+  std::unordered_set<std::string> skip_list;
+
+  FILE* f = filesystem::OpenFile(skip_file_path, "r");
+  if (!f) {
+    // Skip file doesn't exist or can't be opened - that's okay
+    return skip_list;
+  }
+
+  char line_buffer[BUFSIZ];
+  while (fgets(line_buffer, sizeof(line_buffer), f)) {
+    // Remove trailing whitespace/newline
+    char* end = line_buffer + strlen(line_buffer) - 1;
+    while (end >= line_buffer &&
+           (*end == '\n' || *end == '\r' || *end == ' ' || *end == '\t')) {
+      *end = '\0';
+      --end;
+    }
+
+    // Skip empty lines and comments
+    if (strlen(line_buffer) == 0 || line_buffer[0] == '#') {
+      continue;
+    }
+
+    skip_list.insert(std::string(line_buffer));
+  }
+
+  fclose(f);
+  return skip_list;
+}
 
 struct TestCase {
   TestCase(uint32_t address, std::string& name)
@@ -514,18 +554,25 @@ void ProtectedRunTest(TestSuite& test_suite, TestRunner& runner,
 #if XE_COMPILER_MSVC
   __try {
     if (!runner.Setup(test_suite)) {
-      XELOGE("    [{}] TEST FAILED SETUP", test_case.name);
+      fprintf(stderr, "  [%s] FAILED SETUP\n", test_case.name.c_str());
+      fflush(stderr);
       ++failed_count;
       return;
     }
     if (runner.Run(test_case)) {
       ++passed_count;
+      // Print progress dot
+      fprintf(stdout, ".");
+      fflush(stdout);
     } else {
-      XELOGE("    [{}] TEST FAILED", test_case.name);
+      fprintf(stderr, "  [%s] FAILED\n", test_case.name.c_str());
+      fflush(stderr);
       ++failed_count;
     }
   } __except (filter(GetExceptionCode())) {
-    XELOGE("    [{}] TEST FAILED (UNSUPPORTED INSTRUCTION)", test_case.name);
+    fprintf(stderr, "  [%s] FAILED (UNSUPPORTED INSTRUCTION)\n",
+            test_case.name.c_str());
+    fflush(stderr);
     ++failed_count;
   }
 #else
@@ -550,6 +597,12 @@ bool RunTests(const std::string_view test_name) {
 #if XE_ARCH_AMD64
   XELOGI("Instruction feature mask {}.", cvars::x64_extension_mask);
 #endif  // XE_ARCH_AMD64
+
+  // Load skip list
+  auto skip_list = LoadSkipList(cvars::test_skip_file);
+  if (!skip_list.empty()) {
+    XELOGI("Loaded skip list with {} test cases to skip.", skip_list.size());
+  }
 
   auto test_path_root = cvars::test_path;
   std::vector<std::filesystem::path> test_files;
@@ -582,6 +635,24 @@ bool RunTests(const std::string_view test_name) {
   }
 
   XELOGI("{} tests loaded.", test_suites.size());
+
+  // Collect all test cases across all suites, filtering out skipped tests
+  std::vector<std::pair<TestSuite*, TestCase*>> all_tests;
+  int skipped_count = 0;
+  for (auto& test_suite : test_suites) {
+    for (auto& test_case : test_suite.test_cases()) {
+      if (skip_list.find(test_case.name) != skip_list.end()) {
+        ++skipped_count;
+        continue;  // Skip this test
+      }
+      all_tests.push_back({&test_suite, &test_case});
+    }
+  }
+
+  if (skipped_count > 0) {
+    XELOGI("{} test cases skipped based on skip list.", skipped_count);
+  }
+
 #if XE_COMPILER_MSVC
   // On Windows, use a single shared test runner
   TestRunner runner;
@@ -591,11 +662,9 @@ bool RunTests(const std::string_view test_name) {
   TestRunner* runner_ptr = nullptr;
   TestRunner& runner = *runner_ptr;  // Never dereferenced on POSIX
 #endif
-  for (auto& test_suite : test_suites) {
-    for (auto& test_case : test_suite.test_cases()) {
-      ProtectedRunTest(test_suite, runner, test_case, failed_count,
-                       passed_count);
-    }
+  for (auto& [suite, tcase] : all_tests) {
+    ProtectedRunTest(*suite, runner, *tcase, failed_count,
+                     passed_count);
   }
 
   fprintf(stderr, "\n");
