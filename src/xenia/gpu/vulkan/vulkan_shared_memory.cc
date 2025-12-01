@@ -209,6 +209,12 @@ void VulkanSharedMemory::Shutdown(bool from_destructor) {
   }
 }
 
+void VulkanSharedMemory::ClearCache() {
+  SharedMemory::ClearCache();
+
+  upload_buffer_pool_->ClearCache();
+}
+
 void VulkanSharedMemory::CompletedSubmissionUpdated() {
   upload_buffer_pool_->Reclaim(command_processor_.GetCompletedSubmission());
 }
