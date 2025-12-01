@@ -318,6 +318,9 @@ class VulkanPipelineCache {
   // shader interlock when no Xenos pixel shader provided.
   VkShaderModule depth_only_fragment_shader_ = VK_NULL_HANDLE;
 
+  // Vulkan pipeline cache for faster pipeline creation.
+  VkPipelineCache vk_pipeline_cache_ = VK_NULL_HANDLE;
+
   std::unordered_map<PipelineDescription, Pipeline, PipelineDescription::Hasher>
       pipelines_;
 

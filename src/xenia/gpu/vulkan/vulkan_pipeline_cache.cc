@@ -79,6 +79,17 @@ bool VulkanPipelineCache::Initialize() {
     }
   }
 
+  // Create Vulkan pipeline cache for faster pipeline creation.
+  VkPipelineCacheCreateInfo pipeline_cache_create_info = {};
+  pipeline_cache_create_info.sType =
+      VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
+  if (vulkan_device->functions().vkCreatePipelineCache(
+          vulkan_device->device(), &pipeline_cache_create_info, nullptr,
+          &vk_pipeline_cache_) != VK_SUCCESS) {
+    XELOGW("VulkanPipelineCache: Failed to create pipeline cache");
+    vk_pipeline_cache_ = VK_NULL_HANDLE;
+  }
+
   return true;
 }
 
@@ -96,6 +107,12 @@ void VulkanPipelineCache::Shutdown() {
     }
   }
   pipelines_.clear();
+
+  // Destroy the pipeline cache.
+  if (vk_pipeline_cache_ != VK_NULL_HANDLE) {
+    dfn.vkDestroyPipelineCache(device, vk_pipeline_cache_, nullptr);
+    vk_pipeline_cache_ = VK_NULL_HANDLE;
+  }
 
   // Destroy all internal shaders.
   ui::vulkan::util::DestroyAndNullHandle(dfn.vkDestroyShaderModule, device,
@@ -2172,7 +2189,7 @@ bool VulkanPipelineCache::EnsurePipelineCreated(
   const ui::vulkan::VulkanDevice::Functions& dfn = vulkan_device->functions();
   const VkDevice device = vulkan_device->device();
   VkPipeline pipeline;
-  if (dfn.vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1,
+  if (dfn.vkCreateGraphicsPipelines(device, vk_pipeline_cache_, 1,
                                     &pipeline_create_info, nullptr,
                                     &pipeline) != VK_SUCCESS) {
     // TODO(Triang3l): Move these error messages outside.
