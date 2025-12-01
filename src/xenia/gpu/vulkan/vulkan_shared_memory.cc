@@ -413,10 +413,19 @@ bool VulkanSharedMemory::UploadRanges(
       }
       MakeRangeValid(upload_range_start << page_size_log2(),
                      uint32_t(upload_buffer_size), false, false);
-      std::memcpy(
-          upload_buffer_mapping,
-          memory().TranslatePhysical(upload_range_start << page_size_log2()),
-          upload_buffer_size);
+
+      if (upload_buffer_size < (1ULL << 32) && upload_buffer_size > 8192) {
+        memory::vastcpy(
+            upload_buffer_mapping,
+            memory().TranslatePhysical(upload_range_start << page_size_log2()),
+            static_cast<uint32_t>(upload_buffer_size));
+        swcache::WriteFence();
+      } else {
+        std::memcpy(
+            upload_buffer_mapping,
+            memory().TranslatePhysical(upload_range_start << page_size_log2()),
+            upload_buffer_size);
+      }
       if (upload_buffer_previous != upload_buffer && !upload_regions_.empty()) {
         assert_true(upload_buffer_previous != VK_NULL_HANDLE);
         command_buffer.CmdVkCopyBuffer(upload_buffer_previous, buffer_,
