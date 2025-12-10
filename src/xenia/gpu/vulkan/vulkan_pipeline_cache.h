@@ -114,6 +114,22 @@ class VulkanPipelineCache {
     kPoint,
   };
 
+  // Tessellation mode for pipeline creation.
+  // Must match the TCS (hull shader) selection logic.
+  enum class PipelineTessellationMode : uint32_t {
+    kNone,
+    kDiscrete,    // Integer tessellation factors.
+    kContinuous,  // Fractional (fractional_even) tessellation factors.
+    kAdaptive,    // Per-edge factors from index buffer.
+  };
+
+  // Tessellation primitive type.
+  enum class PipelineTessellationPatchType : uint32_t {
+    kNone,
+    kTriangle,
+    kQuad,
+  };
+
   enum class PipelineBlendFactor : uint32_t {
     kZero,
     kOne,
@@ -152,10 +168,12 @@ class VulkanPipelineCache {
     VulkanRenderTargetCache::RenderPassKey render_pass_key;
 
     // Shader stages.
-    PipelineGeometryShader geometry_shader : 2;  // 2
+    PipelineGeometryShader geometry_shader : 2;            // 2
+    PipelineTessellationMode tessellation_mode : 2;        // 4
+    PipelineTessellationPatchType tessellation_patch : 2;  // 6
     // Input assembly.
-    PipelinePrimitiveTopology primitive_topology : 3;  // 5
-    uint32_t primitive_restart : 1;                    // 6
+    PipelinePrimitiveTopology primitive_topology : 3;  // 9
+    uint32_t primitive_restart : 1;                    // 10
     // Rasterization.
     uint32_t depth_clamp_enable : 1;       // 7
     PipelinePolygonMode polygon_mode : 2;  // 9
@@ -216,6 +234,9 @@ class VulkanPipelineCache {
     const VulkanShader::VulkanTranslation* vertex_shader;
     const VulkanShader::VulkanTranslation* pixel_shader;
     VkShaderModule geometry_shader;
+    // Tessellation shaders (only used when tessellation is active).
+    VkShaderModule tessellation_vertex_shader;   // VS for passing data to TCS.
+    VkShaderModule tessellation_control_shader;  // TCS (hull shader).
     VkRenderPass render_pass;
   };
 
@@ -271,6 +292,15 @@ class VulkanPipelineCache {
       GeometryShaderKey& key_out);
   VkShaderModule GetGeometryShader(GeometryShaderKey key);
 
+  // Get the appropriate tessellation control shader (hull shader) module.
+  VkShaderModule GetTessellationControlShader(
+      PipelineTessellationMode mode, PipelineTessellationPatchType patch_type,
+      bool use_control_point_count) const;
+
+  // Get the appropriate tessellation vertex shader module.
+  VkShaderModule GetTessellationVertexShader(
+      PipelineTessellationMode mode) const;
+
   // Can be called from creation threads - all needed data must be fully set up
   // at the point of the call: shaders must be translated, pipeline layout and
   // render pass objects must be available.
@@ -316,6 +346,26 @@ class VulkanPipelineCache {
   // Empty depth-only pixel shader for writing to depth buffer using fragment
   // shader interlock when no Xenos pixel shader provided.
   VkShaderModule depth_only_fragment_shader_ = VK_NULL_HANDLE;
+
+  // Tessellation shaders.
+  // Vertex shaders for tessellation - pass indices/factors to TCS.
+  VkShaderModule tessellation_indexed_vs_ = VK_NULL_HANDLE;
+  VkShaderModule tessellation_adaptive_vs_ = VK_NULL_HANDLE;
+  // Tessellation control shaders (hull shaders) for different modes and
+  // primitive types.
+  // Discrete mode (integer tessellation factors).
+  VkShaderModule discrete_triangle_1cp_hs_ = VK_NULL_HANDLE;
+  VkShaderModule discrete_triangle_3cp_hs_ = VK_NULL_HANDLE;
+  VkShaderModule discrete_quad_1cp_hs_ = VK_NULL_HANDLE;
+  VkShaderModule discrete_quad_4cp_hs_ = VK_NULL_HANDLE;
+  // Continuous mode (fractional_even tessellation factors).
+  VkShaderModule continuous_triangle_1cp_hs_ = VK_NULL_HANDLE;
+  VkShaderModule continuous_triangle_3cp_hs_ = VK_NULL_HANDLE;
+  VkShaderModule continuous_quad_1cp_hs_ = VK_NULL_HANDLE;
+  VkShaderModule continuous_quad_4cp_hs_ = VK_NULL_HANDLE;
+  // Adaptive mode (per-edge factors from index buffer).
+  VkShaderModule adaptive_triangle_hs_ = VK_NULL_HANDLE;
+  VkShaderModule adaptive_quad_hs_ = VK_NULL_HANDLE;
 
   // Vulkan pipeline cache for faster pipeline creation.
   VkPipelineCache vk_pipeline_cache_ = VK_NULL_HANDLE;

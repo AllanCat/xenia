@@ -416,10 +416,17 @@ namespace spv {
   ExecutionMode::SampleInterlockOrderedEXT
 #define ExecutionModeInputPoints ExecutionMode::InputPoints
 #define ExecutionModeTriangles ExecutionMode::Triangles
+#define ExecutionModeQuads ExecutionMode::Quads
+#define ExecutionModeIsolines ExecutionMode::Isolines
 #define ExecutionModeInputLinesAdjacency ExecutionMode::InputLinesAdjacency
 #define ExecutionModeOutputTriangleStrip ExecutionMode::OutputTriangleStrip
 #define ExecutionModeInvocations ExecutionMode::Invocations
 #define ExecutionModeOutputVertices ExecutionMode::OutputVertices
+#define ExecutionModeSpacingEqual ExecutionMode::SpacingEqual
+#define ExecutionModeSpacingFractionalEven ExecutionMode::SpacingFractionalEven
+#define ExecutionModeSpacingFractionalOdd ExecutionMode::SpacingFractionalOdd
+#define ExecutionModeVertexOrderCw ExecutionMode::VertexOrderCw
+#define ExecutionModeVertexOrderCcw ExecutionMode::VertexOrderCcw
 #define ExecutionModeDepthReplacing ExecutionMode::DepthReplacing
 #define ExecutionModeStencilRefReplacingEXT \
   ExecutionMode::StencilRefReplacingEXT

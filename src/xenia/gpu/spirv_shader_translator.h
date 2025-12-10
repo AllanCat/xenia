@@ -271,6 +271,21 @@ class SpirvShaderTranslator : public ShaderTranslator {
     float user_clip_planes[6][4];
   };
 
+  // Separate constant buffer for tessellation parameters.
+  // Must match the layout in xenos_draw.glsli (std140).
+  struct TessellationConstants {
+    // Tessellation factor range: [0] = min, [1] = max.
+    // 1.0 is added on the CPU according to Xbox 360 tessellation documentation.
+    // For fractional_even partitioning, minimum factor must be >= 2.0.
+    float tessellation_factor_range[2];
+    // Padding to align next member to 8 bytes (std140 rules).
+    float padding0[2];
+    // Vertex/index processing parameters.
+    uint32_t vertex_index_endian;
+    uint32_t vertex_index_offset;
+    uint32_t vertex_index_min_max[2];
+  };
+
   enum ConstantBuffer : uint32_t {
     kConstantBufferSystem,
     kConstantBufferFloatVertex,
@@ -278,6 +293,7 @@ class SpirvShaderTranslator : public ShaderTranslator {
     kConstantBufferBoolLoop,
     kConstantBufferFetch,
     kConstantBufferClipPlanes,
+    kConstantBufferTessellation,
 
     kConstantBufferCount,
   };
@@ -895,6 +911,8 @@ class SpirvShaderTranslator : public ShaderTranslator {
   spv::Id input_vertex_index_;
   // VS as TES only - int.
   spv::Id input_primitive_id_;
+  // VS as TES only - float3 (barycentric coordinates).
+  spv::Id input_tess_coord_;
   // PS, only when needed - float2.
   spv::Id input_point_coordinates_;
   // PS, only when needed - float4.

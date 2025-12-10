@@ -15,6 +15,7 @@
 #include "third_party/fmt/include/fmt/format.h"
 #include "third_party/glslang/SPIRV/GLSL.std.450.h"
 #include "xenia/base/assert.h"
+#include "xenia/base/logging.h"
 #include "xenia/base/math.h"
 #include "xenia/base/string_buffer.h"
 #include "xenia/gpu/spirv_compatibility.h"
@@ -111,6 +112,12 @@ void SpirvShaderTranslator::Reset() {
 
   uniform_float_constants_ = spv::NoResult;
 
+  // Vertex shader inputs.
+  input_vertex_index_ = spv::NoResult;
+  // Tessellation evaluation shader inputs.
+  input_primitive_id_ = spv::NoResult;
+  input_tess_coord_ = spv::NoResult;
+  // Pixel shader inputs.
   input_point_coordinates_ = spv::NoResult;
   input_fragment_coordinates_ = spv::NoResult;
   input_front_facing_ = spv::NoResult;
@@ -730,9 +737,45 @@ std::vector<uint8_t> SpirvShaderTranslator::CompleteTranslation() {
     }
   } else {
     assert_true(is_vertex_shader());
-    execution_model = IsSpirvTessEvalShader()
-                          ? spv::ExecutionModelTessellationEvaluation
-                          : spv::ExecutionModelVertex;
+    if (IsSpirvTessEvalShader()) {
+      execution_model = spv::ExecutionModelTessellationEvaluation;
+      // Set tessellation execution modes based on the domain shader type.
+      Modification shader_modification = GetSpirvShaderModification();
+      Shader::HostVertexShaderType host_type =
+          shader_modification.vertex.host_vertex_shader_type;
+      // Tessellation domain (triangles vs quads).
+      switch (host_type) {
+        case Shader::HostVertexShaderType::kTriangleDomainCPIndexed:
+        case Shader::HostVertexShaderType::kTriangleDomainPatchIndexed:
+          builder_->addExecutionMode(function_main_,
+                                     spv::ExecutionModeTriangles);
+          break;
+        case Shader::HostVertexShaderType::kQuadDomainCPIndexed:
+        case Shader::HostVertexShaderType::kQuadDomainPatchIndexed:
+          builder_->addExecutionMode(function_main_, spv::ExecutionModeQuads);
+          break;
+        case Shader::HostVertexShaderType::kLineDomainCPIndexed:
+        case Shader::HostVertexShaderType::kLineDomainPatchIndexed:
+          builder_->addExecutionMode(function_main_,
+                                     spv::ExecutionModeIsolines);
+          break;
+        default:
+          assert_unhandled_case(host_type);
+          break;
+      }
+      // Tessellation spacing - fractional_even for continuous mode, equal
+      // (integer) for discrete mode. The actual mode is determined by the TCS
+      // (hull shader), but we use fractional_even here as the default since it
+      // provides smooth results. The TCS sets the actual tessellation levels.
+      // For now, use fractional_even as it's more compatible.
+      builder_->addExecutionMode(function_main_,
+                                 spv::ExecutionModeSpacingFractionalEven);
+      // Vertex ordering - counter-clockwise (Vulkan default for front face).
+      builder_->addExecutionMode(function_main_,
+                                 spv::ExecutionModeVertexOrderCcw);
+    } else {
+      execution_model = spv::ExecutionModelVertex;
+    }
   }
   if (features_.denorm_flush_to_zero_float32) {
     // Flush to zero, similar to the real hardware, also for things like Shader
@@ -1203,6 +1246,14 @@ void SpirvShaderTranslator::StartVertexOrTessEvalShaderBeforeMain() {
     builder_->addDecoration(input_primitive_id_, spv::DecorationBuiltIn,
                             static_cast<int>(spv::BuiltIn::PrimitiveId));
     main_interface_.push_back(input_primitive_id_);
+
+    // Tessellation coordinates (barycentric coordinates for the tessellated
+    // vertex within the patch).
+    input_tess_coord_ = builder_->createVariable(
+        spv::NoPrecision, spv::StorageClassInput, type_float3_, "gl_TessCoord");
+    builder_->addDecoration(input_tess_coord_, spv::DecorationBuiltIn,
+                            static_cast<int>(spv::BuiltIn::TessCoord));
+    main_interface_.push_back(input_tess_coord_);
   } else {
     input_vertex_index_ = builder_->createVariable(
         spv::NoPrecision, spv::StorageClassInput, type_int_, "gl_VertexIndex");
@@ -1421,8 +1472,166 @@ void SpirvShaderTranslator::StartVertexOrTessEvalShaderInMain() {
 
   // Load the vertex index or the tessellation parameters.
   if (register_count()) {
-    // TODO(Triang3l): Barycentric coordinates and patch index.
-    if (IsSpirvVertexShader()) {
+    if (IsSpirvTessEvalShader()) {
+      // Tessellation evaluation shader (domain shader).
+      // Copy barycentric coordinates (gl_TessCoord) to r0 with appropriate
+      // swizzle based on the domain type.
+      Shader::HostVertexShaderType host_type =
+          shader_modification.vertex.host_vertex_shader_type;
+
+      spv::Id tess_coord =
+          builder_->createLoad(input_tess_coord_, spv::NoPrecision);
+
+      switch (host_type) {
+        case Shader::HostVertexShaderType::kTriangleDomainCPIndexed:
+        case Shader::HostVertexShaderType::kTriangleDomainPatchIndexed: {
+          // Triangle domain requires at least 2 registers (r0 for barycentric,
+          // r1 for control point indices or patch index).
+          assert_true(register_count() >= 2);
+          // Triangle domain: gl_TessCoord.xyz -> r0.zyx
+          // ZYX swizzle according to 415607E1 and 4D5307F2.
+          uint_vector_temp_.clear();
+          uint_vector_temp_.push_back(2);  // z -> r0.x
+          uint_vector_temp_.push_back(1);  // y -> r0.y
+          uint_vector_temp_.push_back(0);  // x -> r0.z
+          spv::Id tess_coord_zyx = builder_->createRvalueSwizzle(
+              spv::NoPrecision, type_float3_, tess_coord, uint_vector_temp_);
+          // Store to r0.xyz
+          id_vector_temp_.clear();
+          id_vector_temp_.push_back(const_int_0_);
+          spv::Id r0_ptr = builder_->createAccessChain(
+              spv::StorageClassFunction, var_main_registers_, id_vector_temp_);
+          // Build float4 from swizzled xyz and w=1.0
+          id_vector_temp_.clear();
+          id_vector_temp_.push_back(
+              builder_->createCompositeExtract(tess_coord_zyx, type_float_, 0));
+          id_vector_temp_.push_back(
+              builder_->createCompositeExtract(tess_coord_zyx, type_float_, 1));
+          id_vector_temp_.push_back(
+              builder_->createCompositeExtract(tess_coord_zyx, type_float_, 2));
+          id_vector_temp_.push_back(const_float_1_);
+          builder_->createStore(
+              builder_->createCompositeConstruct(type_float4_, id_vector_temp_),
+              r0_ptr);
+          break;
+        }
+        case Shader::HostVertexShaderType::kQuadDomainCPIndexed: {
+          // Quad domain requires at least 2 registers (r0 for domain location,
+          // r1 for control point indices).
+          assert_true(register_count() >= 2);
+          // Quad domain CP-indexed: gl_TessCoord.xy -> r0.yz, r0.x = 0, r0.w =
+          // 1 XY swizzle according to the ground shader in 4D5307F2.
+          uint_vector_temp_.clear();
+          uint_vector_temp_.push_back(0);  // x -> r0.y
+          uint_vector_temp_.push_back(1);  // y -> r0.z
+          spv::Id tess_coord_xy = builder_->createRvalueSwizzle(
+              spv::NoPrecision, type_float2_, tess_coord, uint_vector_temp_);
+          // Store to r0
+          id_vector_temp_.clear();
+          id_vector_temp_.push_back(const_int_0_);
+          spv::Id r0_ptr = builder_->createAccessChain(
+              spv::StorageClassFunction, var_main_registers_, id_vector_temp_);
+          // Build float4 with x=0, yz from tess coord, w=1
+          id_vector_temp_.clear();
+          id_vector_temp_.push_back(const_float_0_);
+          id_vector_temp_.push_back(
+              builder_->createCompositeExtract(tess_coord_xy, type_float_, 0));
+          id_vector_temp_.push_back(
+              builder_->createCompositeExtract(tess_coord_xy, type_float_, 1));
+          id_vector_temp_.push_back(const_float_1_);
+          builder_->createStore(
+              builder_->createCompositeConstruct(type_float4_, id_vector_temp_),
+              r0_ptr);
+          break;
+        }
+        case Shader::HostVertexShaderType::kQuadDomainPatchIndexed: {
+          // Quad domain requires at least 2 registers (r0 for domain location
+          // and patch index, r1 for swizzle indicator).
+          assert_true(register_count() >= 2);
+          // Quad domain patch-indexed: gl_TessCoord.xy -> r0.yz,
+          // patch index -> r0.x, r0.w = 1
+          // XY swizzle according to the ground shader in 4D5307F2.
+          uint_vector_temp_.clear();
+          uint_vector_temp_.push_back(0);  // x -> r0.y
+          uint_vector_temp_.push_back(1);  // y -> r0.z
+          spv::Id tess_coord_xy = builder_->createRvalueSwizzle(
+              spv::NoPrecision, type_float2_, tess_coord, uint_vector_temp_);
+          // Load primitive ID (patch index) and convert to float.
+          spv::Id primitive_id =
+              builder_->createLoad(input_primitive_id_, spv::NoPrecision);
+          spv::Id patch_index_float = builder_->createUnaryOp(
+              spv::OpConvertSToF, type_float_, primitive_id);
+          // Store to r0: x = patch index, yz = tess coord, w = 1
+          id_vector_temp_.clear();
+          id_vector_temp_.push_back(const_int_0_);
+          spv::Id r0_ptr = builder_->createAccessChain(
+              spv::StorageClassFunction, var_main_registers_, id_vector_temp_);
+          id_vector_temp_.clear();
+          id_vector_temp_.push_back(patch_index_float);
+          id_vector_temp_.push_back(
+              builder_->createCompositeExtract(tess_coord_xy, type_float_, 0));
+          id_vector_temp_.push_back(
+              builder_->createCompositeExtract(tess_coord_xy, type_float_, 1));
+          id_vector_temp_.push_back(const_float_1_);
+          builder_->createStore(
+              builder_->createCompositeConstruct(type_float4_, id_vector_temp_),
+              r0_ptr);
+          // Also set r1.x = 0.0f (swizzle indicator for identity swizzle).
+          if (register_count() >= 2) {
+            id_vector_temp_.clear();
+            id_vector_temp_.push_back(builder_->makeIntConstant(1));
+            id_vector_temp_.push_back(const_int_0_);
+            builder_->createStore(const_float_0_,
+                                  builder_->createAccessChain(
+                                      spv::StorageClassFunction,
+                                      var_main_registers_, id_vector_temp_));
+          }
+          break;
+        }
+        case Shader::HostVertexShaderType::kLineDomainCPIndexed:
+        case Shader::HostVertexShaderType::kLineDomainPatchIndexed:
+          // Line domain tessellation is not yet implemented.
+          XELOGE(
+              "SPIRV: Line domain tessellation not implemented for host type "
+              "{}",
+              static_cast<uint32_t>(host_type));
+          assert_unhandled_case(host_type);
+          break;
+        default:
+          break;
+      }
+
+      // For triangle patch-indexed mode, store patch index to r1.x and
+      // swizzle indicator (0.0f) to r1.y.
+      if (register_count() >= 2) {
+        if (host_type ==
+            Shader::HostVertexShaderType::kTriangleDomainPatchIndexed) {
+          // Load primitive ID (patch index) and convert to float.
+          spv::Id primitive_id =
+              builder_->createLoad(input_primitive_id_, spv::NoPrecision);
+          spv::Id patch_index_float = builder_->createUnaryOp(
+              spv::OpConvertSToF, type_float_, primitive_id);
+          // Store patch index to r1.x
+          id_vector_temp_.clear();
+          id_vector_temp_.push_back(builder_->makeIntConstant(1));
+          id_vector_temp_.push_back(const_int_0_);
+          builder_->createStore(patch_index_float,
+                                builder_->createAccessChain(
+                                    spv::StorageClassFunction,
+                                    var_main_registers_, id_vector_temp_));
+          // Store swizzle indicator (0.0f = identity) to r1.y
+          // According to D3D12 implementation and comments in
+          // adaptive_triangle.hs.glsl, r1.y == 0 means identity swizzle.
+          id_vector_temp_.clear();
+          id_vector_temp_.push_back(builder_->makeIntConstant(1));
+          id_vector_temp_.push_back(builder_->makeIntConstant(1));
+          builder_->createStore(const_float_0_,
+                                builder_->createAccessChain(
+                                    spv::StorageClassFunction,
+                                    var_main_registers_, id_vector_temp_));
+        }
+      }
+    } else if (IsSpirvVertexShader()) {
       spv::Id vertex_index = builder_->createUnaryOp(
           spv::OpBitcast, type_uint_,
           builder_->createLoad(input_vertex_index_, spv::NoPrecision));
