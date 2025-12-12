@@ -34,7 +34,7 @@ class SpirvShaderTranslator : public ShaderTranslator {
     // TODO(Triang3l): Change to 0xYYYYMMDD once it's out of the rapid
     // prototyping stage (easier to do small granular updates with an
     // incremental counter).
-    static constexpr uint32_t kVersion = 6;
+    static constexpr uint32_t kVersion = 7;
 
     enum class DepthStencilMode : uint32_t {
       kNoModifiers,
@@ -201,6 +201,10 @@ class SpirvShaderTranslator : public ShaderTranslator {
     // apply to the result directly in the shader code. In each uint32_t,
     // swizzles for 2 texture fetch constants (in bits 0:11 and 12:23).
     uint32_t texture_swizzles[16];
+
+    // Whether the contents of each texture in fetch constants comes from a
+    // resolve operation (bit per texture, 32 textures max).
+    uint32_t textures_resolved;
 
     float alpha_test_reference;
     uint32_t edram_32bpp_tile_pitch_dwords_scaled;
@@ -821,6 +825,7 @@ class SpirvShaderTranslator : public ShaderTranslator {
     kSystemConstantPointScreenDiameterToNdcRadius,
     kSystemConstantTextureSwizzledSigns,
     kSystemConstantTextureSwizzles,
+    kSystemConstantTexturesResolved,
     kSystemConstantAlphaTestReference,
     kSystemConstantEdram32bppTilePitchDwordsScaled,
     kSystemConstantEdramDepthBaseDwordsScaled,

@@ -143,8 +143,13 @@ class TextureCache {
     if (!binding) {
       return false;
     }
-    return (binding->texture && binding->texture->IsResolved()) ||
-           (binding->texture_signed && binding->texture_signed->IsResolved());
+    // Check if the texture is a resolution-scaled resolve target, not just
+    // any resolved texture. Only scaled textures need coordinate adjustment.
+    // Must check the texture's key, not binding->key, because scaled_resolve
+    // is set in FindOrCreateTexture which takes the key by value.
+    return (binding->texture && binding->texture->key().scaled_resolve) ||
+           (binding->texture_signed &&
+            binding->texture_signed->key().scaled_resolve);
   }
   template <swcache::PrefetchTag tag>
   void PrefetchTextureBinding(uint32_t fetch_constant_index) const {

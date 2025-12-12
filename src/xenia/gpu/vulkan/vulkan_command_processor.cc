@@ -4151,6 +4151,21 @@ void VulkanCommandProcessor::UpdateSystemConstantValues(
     }
   }
 
+  // Textures resolved - which textures are from resolve operations (scaled).
+  {
+    uint32_t textures_resolved = 0;
+    uint32_t textures_remaining = used_texture_mask;
+    uint32_t texture_index;
+    while (xe::bit_scan_forward(textures_remaining, &texture_index)) {
+      textures_remaining &= ~(UINT32_C(1) << texture_index);
+      textures_resolved |=
+          uint32_t(texture_cache_->IsActiveTextureResolved(texture_index))
+          << texture_index;
+    }
+    dirty |= system_constants_.textures_resolved != textures_resolved;
+    system_constants_.textures_resolved = textures_resolved;
+  }
+
   // Alpha test.
   dirty |= system_constants_.alpha_test_reference != rb_alpha_ref;
   system_constants_.alpha_test_reference = rb_alpha_ref;

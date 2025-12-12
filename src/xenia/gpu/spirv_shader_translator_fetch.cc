@@ -16,6 +16,7 @@
 #include "third_party/glslang/SPIRV/GLSL.std.450.h"
 #include "xenia/base/assert.h"
 #include "xenia/base/math.h"
+#include "xenia/gpu/render_target_cache.h"
 #include "xenia/gpu/spirv_compatibility.h"
 
 namespace xe {
@@ -1025,6 +1026,56 @@ void SpirvShaderTranslator::ProcessTextureFetchInstruction(
       }
     }
 
+    // Check if this texture is from a resolution-scaled resolve operation.
+    // This affects both size and offset calculations.
+    spv::Id is_texture_resolved = spv::NoResult;
+    if (cvars::draw_resolution_scaled_texture_offsets &&
+        (draw_resolution_scale_x_ > 1 || draw_resolution_scale_y_ > 1)) {
+      // Load textures_resolved from system constants.
+      id_vector_temp_.clear();
+      id_vector_temp_.push_back(
+          builder_->makeIntConstant(kSystemConstantTexturesResolved));
+      spv::Id textures_resolved =
+          builder_->createLoad(builder_->createAccessChain(
+                                   spv::StorageClassUniform,
+                                   uniform_system_constants_, id_vector_temp_),
+                               spv::NoPrecision);
+      // Check if this texture is resolved:
+      // (textures_resolved >> fetch_constant_index) & 1
+      assert_true(fetch_constant_index < 32);
+      is_texture_resolved = builder_->createBinOp(
+          spv::OpINotEqual, type_bool_,
+          builder_->createBinOp(
+              spv::OpBitwiseAnd, type_uint_, textures_resolved,
+              builder_->makeUintConstant(UINT32_C(1) << fetch_constant_index)),
+          const_uint_0_);
+    }
+
+    // Scale the size for resolution-scaled textures.
+    // When a texture is from a resolve operation (scaled), its actual host
+    // dimensions are larger than the guest dimensions in the fetch constant.
+    // The size must be scaled so that coordinate normalization and offset
+    // calculations use the correct host dimensions.
+    if (is_texture_resolved != spv::NoResult && size_needed_components) {
+      if (size[0] != spv::NoResult && draw_resolution_scale_x_ > 1) {
+        spv::Id scaled_size_x = builder_->createNoContractionBinOp(
+            spv::OpFMul, type_float_, size[0],
+            builder_->makeFloatConstant(float(draw_resolution_scale_x_)));
+        size[0] =
+            builder_->createTriOp(spv::OpSelect, type_float_,
+                                  is_texture_resolved, scaled_size_x, size[0]);
+      }
+      if (size[1] != spv::NoResult && draw_resolution_scale_y_ > 1) {
+        spv::Id scaled_size_y = builder_->createNoContractionBinOp(
+            spv::OpFMul, type_float_, size[1],
+            builder_->makeFloatConstant(float(draw_resolution_scale_y_)));
+        size[1] =
+            builder_->createTriOp(spv::OpSelect, type_float_,
+                                  is_texture_resolved, scaled_size_y, size[1]);
+      }
+      // Z size is not scaled (depth/layers don't change with resolution).
+    }
+
     // FIXME(Triang3l): Mip lerp factor needs to be calculated, and the
     // coordinate lerp factors should be calculated at the mip level texels
     // would be sampled from. That would require some way of calculating the
@@ -1105,6 +1156,11 @@ void SpirvShaderTranslator::ProcessTextureFetchInstruction(
       // kTextureFetch or kGetTextureComputedLod.
 
       // Normalize the XY coordinates, and apply the offset.
+      // When a texture is from a resolution-scaled resolve, offsets are in
+      // guest texels but the size is in host texels. We need to scale offsets
+      // to compensate:
+      // - For normalized coords: coord + (offset * scale) / size_scaled
+      // - For unnormalized coords: (coord + offset) * scale / size_scaled
       for (uint32_t i = 0;
            i <= uint32_t(instr.dimension != xenos::FetchOpDimension::k1D);
            ++i) {
@@ -1118,15 +1174,49 @@ void SpirvShaderTranslator::ProcessTextureFetchInstruction(
             coordinate_ref = builder_->createNoContractionBinOp(
                 spv::OpFAdd, type_float_, coordinate_ref, component_offset);
           }
+          // For resolution-scaled textures with unnormalized coords, we need
+          // to scale the coordinate (which now includes offset) before
+          // dividing by the scaled size. This ensures:
+          // (coord + offset) * scale / size_scaled = (coord + offset) /
+          // guest_size
+          if (is_texture_resolved != spv::NoResult &&
+              ((i == 0 && draw_resolution_scale_x_ > 1) ||
+               (i == 1 && draw_resolution_scale_y_ > 1))) {
+            float scale = (i == 0) ? float(draw_resolution_scale_x_)
+                                   : float(draw_resolution_scale_y_);
+            spv::Id scaled_coord = builder_->createNoContractionBinOp(
+                spv::OpFMul, type_float_, coordinate_ref,
+                builder_->makeFloatConstant(scale));
+            coordinate_ref = builder_->createTriOp(
+                spv::OpSelect, type_float_, is_texture_resolved, scaled_coord,
+                coordinate_ref);
+          }
           assert_true(size_component != spv::NoResult);
           coordinate_ref = builder_->createNoContractionBinOp(
               spv::OpFDiv, type_float_, coordinate_ref, size_component);
         } else {
           if (component_offset != spv::NoResult) {
             assert_true(size_component != spv::NoResult);
+            // For resolution-scaled textures with normalized coords, scale the
+            // offset before normalizing. This ensures:
+            // coord + (offset * scale) / size_scaled = coord + offset /
+            // guest_size
+            spv::Id effective_offset = component_offset;
+            if (is_texture_resolved != spv::NoResult &&
+                ((i == 0 && draw_resolution_scale_x_ > 1) ||
+                 (i == 1 && draw_resolution_scale_y_ > 1))) {
+              float scale = (i == 0) ? float(draw_resolution_scale_x_)
+                                     : float(draw_resolution_scale_y_);
+              spv::Id scaled_offset = builder_->createNoContractionBinOp(
+                  spv::OpFMul, type_float_, component_offset,
+                  builder_->makeFloatConstant(scale));
+              effective_offset = builder_->createTriOp(
+                  spv::OpSelect, type_float_, is_texture_resolved,
+                  scaled_offset, component_offset);
+            }
             spv::Id component_offset_normalized =
                 builder_->createNoContractionBinOp(
-                    spv::OpFDiv, type_float_, component_offset, size_component);
+                    spv::OpFDiv, type_float_, effective_offset, size_component);
             coordinate_ref = builder_->createNoContractionBinOp(
                 spv::OpFAdd, type_float_, coordinate_ref,
                 component_offset_normalized);
