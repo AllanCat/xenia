@@ -118,6 +118,14 @@ class VulkanDevice {
 
     bool samplerMirrorClampToEdge = false;
 
+    // VK_KHR_uniform_buffer_standard_layout (#253, promoted to 1.2)
+
+    bool uniformBufferStandardLayout = false;
+
+    // VK_EXT_scalar_block_layout (#222, promoted to 1.2)
+
+    bool scalarBlockLayout = false;
+
     // VK_KHR_portability_subset (#164)
 
     bool constantAlphaColorBlendFactors = false;
