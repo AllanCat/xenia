@@ -3333,7 +3333,8 @@ spv::Id SpirvShaderTranslator::EndianSwap128Uint4(spv::Id value,
   uint_vector_temp_.push_back(3);
   uint_vector_temp_.push_back(2);
   value = builder_->createTriOp(
-      spv::OpSelect, type_uint4_, is_8in64,
+      spv::OpSelect, type_uint4_,
+      builder_->smearScalar(spv::NoPrecision, is_8in64, type_bool4_),
       builder_->createRvalueSwizzle(spv::NoPrecision, type_uint4_, value,
                                     uint_vector_temp_),
       value);
@@ -3348,7 +3349,8 @@ spv::Id SpirvShaderTranslator::EndianSwap128Uint4(spv::Id value,
   uint_vector_temp_.push_back(1);
   uint_vector_temp_.push_back(0);
   value = builder_->createTriOp(
-      spv::OpSelect, type_uint4_, is_8in128,
+      spv::OpSelect, type_uint4_,
+      builder_->smearScalar(spv::NoPrecision, is_8in128, type_bool4_),
       builder_->createRvalueSwizzle(spv::NoPrecision, type_uint4_, value,
                                     uint_vector_temp_),
       value);
