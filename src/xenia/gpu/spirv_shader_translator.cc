@@ -723,6 +723,10 @@ std::vector<uint8_t> SpirvShaderTranslator::CompleteTranslation() {
       builder_->addExecutionMode(function_main_,
                                  spv::ExecutionModeEarlyFragmentTests);
     }
+    if (current_shader().writes_depth()) {
+      builder_->addExecutionMode(function_main_,
+                                 spv::ExecutionModeDepthReplacing);
+    }
     if (edram_fragment_shader_interlock_) {
       // Accessing per-sample values, so interlocking just when there's common
       // coverage is enough if the device exposes that.
