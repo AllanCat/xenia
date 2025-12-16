@@ -344,6 +344,38 @@ VulkanPipelineCache::GetCurrentPixelShaderModification(
     } else {
       modification.pixel.depth_stencil_mode = DepthStencilMode::kNoModifiers;
     }
+
+    // Check if MIN/MAX blend is used with non-trivial source factors.
+    // Vulkan/D3D12 fixed-function blend ignores factors for MIN/MAX, but
+    // Xbox 360 applies them. If the destination factor is ONE (or ZERO), we can
+    // pre-multiply the shader output by the source factor to emulate this.
+    // Only RT0 is supported for now.
+    modification.pixel.rt0_blend_rgb_factor_for_premult =
+        xenos::BlendFactor::kOne;
+    modification.pixel.rt0_blend_a_factor_for_premult =
+        xenos::BlendFactor::kOne;
+
+    if (shader.writes_color_target(0)) {
+      auto blend_control = regs.Get<reg::RB_BLENDCONTROL>(
+          reg::RB_BLENDCONTROL::rt_register_indices[0]);
+
+      // Pre-multiply by kSrcAlpha for MIN/MAX blend ops when dstFactor is ONE.
+      if ((blend_control.color_comb_fcn == xenos::BlendOp::kMin ||
+           blend_control.color_comb_fcn == xenos::BlendOp::kMax) &&
+          blend_control.color_srcblend == xenos::BlendFactor::kSrcAlpha &&
+          blend_control.color_destblend == xenos::BlendFactor::kOne) {
+        modification.pixel.rt0_blend_rgb_factor_for_premult =
+            xenos::BlendFactor::kSrcAlpha;
+      }
+
+      if ((blend_control.alpha_comb_fcn == xenos::BlendOp::kMin ||
+           blend_control.alpha_comb_fcn == xenos::BlendOp::kMax) &&
+          blend_control.alpha_srcblend == xenos::BlendFactor::kSrcAlpha &&
+          blend_control.alpha_destblend == xenos::BlendFactor::kOne) {
+        modification.pixel.rt0_blend_a_factor_for_premult =
+            xenos::BlendFactor::kSrcAlpha;
+      }
+    }
   }
 
   return modification;
@@ -2383,6 +2415,16 @@ bool VulkanPipelineCache::EnsurePipelineCreated(
                                                   VK_BLEND_OP_ADD,
                                                   VK_BLEND_OP_ADD,
                                                   VK_BLEND_OP_ADD};
+      // Check if the shader pre-multiplies by blend factors for MIN/MAX.
+      SpirvShaderTranslator::Modification pixel_shader_modification(
+          description.pixel_shader_modification);
+      bool rt0_rgb_premult =
+          pixel_shader_modification.pixel.rt0_blend_rgb_factor_for_premult !=
+          xenos::BlendFactor::kOne;
+      bool rt0_a_premult =
+          pixel_shader_modification.pixel.rt0_blend_a_factor_for_premult !=
+          xenos::BlendFactor::kOne;
+
       uint32_t color_rts_remaining = color_rts_used;
       uint32_t color_rt_index;
       while (xe::bit_scan_forward(color_rts_remaining, &color_rt_index)) {
@@ -2410,6 +2452,18 @@ bool VulkanPipelineCache::EnsurePipelineCreated(
               kBlendFactorMap[uint32_t(color_rt.dst_alpha_blend_factor)];
           color_blend_attachment.alphaBlendOp =
               kBlendOpMap[uint32_t(color_rt.alpha_blend_op)];
+
+          // If the shader pre-multiplies by the source blend factor for RT0
+          // MIN/MAX, set the pipeline source factor to ONE since it's already
+          // applied in the shader.
+          if (color_rt_index == 0) {
+            if (rt0_rgb_premult) {
+              color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+            }
+            if (rt0_a_premult) {
+              color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+            }
+          }
         }
         color_blend_attachment.colorWriteMask =
             VkColorComponentFlags(color_rt.color_write_mask);

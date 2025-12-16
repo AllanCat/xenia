@@ -114,7 +114,7 @@ class DxbcShaderTranslator : public ShaderTranslator {
     // If anything in this is structure is changed in a way not compatible with
     // the previous layout, invalidate the pipeline storages by increasing this
     // version number (0xYYYYMMDD)!
-    static constexpr uint32_t kVersion = 0x20220720;
+    static constexpr uint32_t kVersion = 0x20251216;
 
     enum class DepthStencilMode : uint32_t {
       kNoModifiers,
@@ -179,6 +179,12 @@ class DxbcShaderTranslator : public ShaderTranslator {
       uint32_t dynamic_addressable_register_count : 8;
       // Non-ROV - depth / stencil output mode.
       DepthStencilMode depth_stencil_mode : 2;
+      // For host render targets with MIN/MAX blend op - the source blend factor
+      // to pre-multiply the shader output by (since D3D12 MIN/MAX ignores blend
+      // factors, but Xbox 360 applies them). kOne means no pre-multiply.
+      // Only RT0 is supported for now.
+      xenos::BlendFactor rt0_blend_rgb_factor_for_premult : 5;
+      xenos::BlendFactor rt0_blend_a_factor_for_premult : 5;
     } pixel;
 
     explicit Modification(uint64_t modification_value = 0)

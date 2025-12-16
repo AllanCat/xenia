@@ -1301,6 +1301,12 @@ void SpirvShaderTranslator::CompleteFragmentShaderInMain() {
     // FBO path: Copy from Function-scoped variables to Output variables.
     // This is done at the end after alpha test/coverage so we can read the
     // color values during those operations.
+    Modification shader_modification = GetSpirvShaderModification();
+    xenos::BlendFactor rt0_rgb_premult_factor =
+        shader_modification.pixel.rt0_blend_rgb_factor_for_premult;
+    xenos::BlendFactor rt0_a_premult_factor =
+        shader_modification.pixel.rt0_blend_a_factor_for_premult;
+
     uint32_t color_targets_to_copy = current_shader().writes_color_targets();
     uint32_t color_target_index;
     while (xe::bit_scan_forward(color_targets_to_copy, &color_target_index)) {
@@ -1308,8 +1314,175 @@ void SpirvShaderTranslator::CompleteFragmentShaderInMain() {
       spv::Id var_color = output_or_var_fragment_data_[color_target_index];
       spv::Id out_color = output_fragment_data_[color_target_index];
       if (var_color != spv::NoResult && out_color != spv::NoResult) {
-        builder_->createStore(builder_->createLoad(var_color, spv::NoPrecision),
-                              out_color);
+        spv::Id color = builder_->createLoad(var_color, spv::NoPrecision);
+
+        // For RT0, apply pre-multiply by source blend factor if needed for
+        // MIN/MAX blend emulation (since Vulkan/D3D12 ignores blend factors
+        // for MIN/MAX but Xbox 360 applies them).
+        if (color_target_index == 0 &&
+            (rt0_rgb_premult_factor != xenos::BlendFactor::kOne ||
+             rt0_a_premult_factor != xenos::BlendFactor::kOne)) {
+          // Helper to extract RGB (xyz) from a float4.
+          auto extract_rgb = [&](spv::Id vec4) -> spv::Id {
+            uint_vector_temp_.clear();
+            uint_vector_temp_.push_back(0);
+            uint_vector_temp_.push_back(1);
+            uint_vector_temp_.push_back(2);
+            return builder_->createRvalueSwizzle(spv::NoPrecision, type_float3_,
+                                                 vec4, uint_vector_temp_);
+          };
+
+          // Get blend factor values.
+          auto get_factor_value = [&](xenos::BlendFactor factor,
+                                      bool for_alpha) -> spv::Id {
+            spv::Id src_color = color;
+            switch (factor) {
+              case xenos::BlendFactor::kZero:
+                return for_alpha ? const_float_0_ : const_float3_0_;
+              case xenos::BlendFactor::kOne:
+                return for_alpha ? const_float_1_ : const_float3_1_;
+              case xenos::BlendFactor::kSrcColor:
+                return for_alpha ? builder_->createCompositeExtract(
+                                       src_color, type_float_, 3)
+                                 : extract_rgb(src_color);
+              case xenos::BlendFactor::kOneMinusSrcColor: {
+                spv::Id src = for_alpha ? builder_->createCompositeExtract(
+                                              src_color, type_float_, 3)
+                                        : extract_rgb(src_color);
+                spv::Id one = for_alpha ? const_float_1_ : const_float3_1_;
+                return builder_->createBinOp(
+                    spv::OpFSub, for_alpha ? type_float_ : type_float3_, one,
+                    src);
+              }
+              case xenos::BlendFactor::kSrcAlpha: {
+                spv::Id alpha =
+                    builder_->createCompositeExtract(src_color, type_float_, 3);
+                if (for_alpha) {
+                  return alpha;
+                }
+                return builder_->smearScalar(spv::NoPrecision, alpha,
+                                             type_float3_);
+              }
+              case xenos::BlendFactor::kOneMinusSrcAlpha: {
+                spv::Id alpha =
+                    builder_->createCompositeExtract(src_color, type_float_, 3);
+                spv::Id one_minus_alpha = builder_->createBinOp(
+                    spv::OpFSub, type_float_, const_float_1_, alpha);
+                if (for_alpha) {
+                  return one_minus_alpha;
+                }
+                return builder_->smearScalar(spv::NoPrecision, one_minus_alpha,
+                                             type_float3_);
+              }
+              case xenos::BlendFactor::kConstantColor:
+              case xenos::BlendFactor::kConstantAlpha: {
+                // Load blend constant from system constants.
+                id_vector_temp_.clear();
+                id_vector_temp_.push_back(builder_->makeIntConstant(
+                    kSystemConstantEdramBlendConstant));
+                spv::Id blend_constant = builder_->createLoad(
+                    builder_->createAccessChain(spv::StorageClassUniform,
+                                                uniform_system_constants_,
+                                                id_vector_temp_),
+                    spv::NoPrecision);
+                if (factor == xenos::BlendFactor::kConstantAlpha) {
+                  spv::Id alpha = builder_->createCompositeExtract(
+                      blend_constant, type_float_, 3);
+                  if (for_alpha) {
+                    return alpha;
+                  }
+                  return builder_->smearScalar(spv::NoPrecision, alpha,
+                                               type_float3_);
+                }
+                if (for_alpha) {
+                  return builder_->createCompositeExtract(blend_constant,
+                                                          type_float_, 3);
+                }
+                return extract_rgb(blend_constant);
+              }
+              case xenos::BlendFactor::kOneMinusConstantColor:
+              case xenos::BlendFactor::kOneMinusConstantAlpha: {
+                id_vector_temp_.clear();
+                id_vector_temp_.push_back(builder_->makeIntConstant(
+                    kSystemConstantEdramBlendConstant));
+                spv::Id blend_constant = builder_->createLoad(
+                    builder_->createAccessChain(spv::StorageClassUniform,
+                                                uniform_system_constants_,
+                                                id_vector_temp_),
+                    spv::NoPrecision);
+                spv::Id constant_value;
+                if (factor == xenos::BlendFactor::kOneMinusConstantAlpha) {
+                  spv::Id alpha = builder_->createCompositeExtract(
+                      blend_constant, type_float_, 3);
+                  if (for_alpha) {
+                    constant_value = alpha;
+                  } else {
+                    constant_value = builder_->smearScalar(spv::NoPrecision,
+                                                           alpha, type_float3_);
+                  }
+                } else {
+                  if (for_alpha) {
+                    constant_value = builder_->createCompositeExtract(
+                        blend_constant, type_float_, 3);
+                  } else {
+                    constant_value = extract_rgb(blend_constant);
+                  }
+                }
+                spv::Id one = for_alpha ? const_float_1_ : const_float3_1_;
+                return builder_->createBinOp(
+                    spv::OpFSub, for_alpha ? type_float_ : type_float3_, one,
+                    constant_value);
+              }
+              default:
+                // Unsupported factors - return 1 (no multiply).
+                return for_alpha ? const_float_1_ : const_float3_1_;
+            }
+          };
+
+          // Apply RGB pre-multiply.
+          if (rt0_rgb_premult_factor != xenos::BlendFactor::kOne) {
+            spv::Id rgb_factor =
+                get_factor_value(rt0_rgb_premult_factor, false);
+            spv::Id rgb = extract_rgb(color);
+            rgb = builder_->createBinOp(spv::OpFMul, type_float3_, rgb,
+                                        rgb_factor);
+            // Reconstruct float4 with new RGB and original alpha.
+            spv::Id alpha =
+                builder_->createCompositeExtract(color, type_float_, 3);
+            id_vector_temp_.clear();
+            id_vector_temp_.push_back(
+                builder_->createCompositeExtract(rgb, type_float_, 0));
+            id_vector_temp_.push_back(
+                builder_->createCompositeExtract(rgb, type_float_, 1));
+            id_vector_temp_.push_back(
+                builder_->createCompositeExtract(rgb, type_float_, 2));
+            id_vector_temp_.push_back(alpha);
+            color = builder_->createCompositeConstruct(type_float4_,
+                                                       id_vector_temp_);
+          }
+
+          // Apply alpha pre-multiply.
+          if (rt0_a_premult_factor != xenos::BlendFactor::kOne) {
+            spv::Id a_factor = get_factor_value(rt0_a_premult_factor, true);
+            spv::Id alpha =
+                builder_->createCompositeExtract(color, type_float_, 3);
+            alpha = builder_->createBinOp(spv::OpFMul, type_float_, alpha,
+                                          a_factor);
+            // Replace alpha in color (extract RGB, reconstruct with new alpha).
+            id_vector_temp_.clear();
+            id_vector_temp_.push_back(
+                builder_->createCompositeExtract(color, type_float_, 0));
+            id_vector_temp_.push_back(
+                builder_->createCompositeExtract(color, type_float_, 1));
+            id_vector_temp_.push_back(
+                builder_->createCompositeExtract(color, type_float_, 2));
+            id_vector_temp_.push_back(alpha);
+            color = builder_->createCompositeConstruct(type_float4_,
+                                                       id_vector_temp_);
+          }
+        }
+
+        builder_->createStore(color, out_color);
       }
     }
   }
@@ -3346,142 +3519,113 @@ spv::Id SpirvShaderTranslator::FSI_BlendColorOrAlphaWithUnclampedResult(
                             constant_color_clamped != spv::NoResult));
   spv::Id value_type = is_alpha ? type_float_ : type_float3_;
 
-  // Handle min and max blend operations, which don't involve the factors.
-  spv::Block& block_min_max_head = *builder_->getBuildPoint();
-  spv::Block& block_min_max_min = builder_->makeNewBlock();
-  spv::Block& block_min_max_max = builder_->makeNewBlock();
-  spv::Block& block_min_max_default = builder_->makeNewBlock();
-  spv::Block& block_min_max_merge = builder_->makeNewBlock();
-  builder_->createSelectionMerge(&block_min_max_merge,
+  // Apply blend factors to source and destination first.
+  // Note: Unlike Vulkan's VK_BLEND_OP_MIN/MAX which ignore blend factors,
+  // the Xbox 360 applies blend factors before the min/max operation.
+  // So we apply factors unconditionally, then switch on the equation.
+  spv::Id term_source, term_dest;
+  if (is_alpha) {
+    term_source = FSI_ApplyAlphaBlendFactor(
+        source_alpha_clamped, is_fixed_point, clamp_min_value, clamp_max_value,
+        source_factor, source_alpha_clamped, dest_alpha,
+        constant_alpha_clamped);
+    term_dest = FSI_ApplyAlphaBlendFactor(
+        dest_alpha, is_fixed_point, clamp_min_value, clamp_max_value,
+        dest_factor, source_alpha_clamped, dest_alpha, constant_alpha_clamped);
+  } else {
+    term_source = FSI_ApplyColorBlendFactor(
+        source_color_clamped, is_fixed_point, clamp_min_value, clamp_max_value,
+        source_factor, source_color_clamped, source_alpha_clamped, dest_color,
+        dest_alpha, constant_color_clamped, constant_alpha_clamped);
+    term_dest = FSI_ApplyColorBlendFactor(
+        dest_color, is_fixed_point, clamp_min_value, clamp_max_value,
+        dest_factor, source_color_clamped, source_alpha_clamped, dest_color,
+        dest_alpha, constant_color_clamped, constant_alpha_clamped);
+  }
+
+  // Now switch on the blend equation to combine the factored terms.
+  spv::Block& block_equation_head = *builder_->getBuildPoint();
+  spv::Block& block_equation_add = builder_->makeNewBlock();
+  spv::Block& block_equation_subtract = builder_->makeNewBlock();
+  spv::Block& block_equation_rev_subtract = builder_->makeNewBlock();
+  spv::Block& block_equation_min = builder_->makeNewBlock();
+  spv::Block& block_equation_max = builder_->makeNewBlock();
+  spv::Block& block_equation_merge = builder_->makeNewBlock();
+  builder_->createSelectionMerge(&block_equation_merge,
                                  spv::SelectionControlDontFlattenMask);
   {
-    std::unique_ptr<spv::Instruction> min_max_switch_op =
+    std::unique_ptr<spv::Instruction> equation_switch_op =
         std::make_unique<spv::Instruction>(spv::OpSwitch);
-    min_max_switch_op->addIdOperand(equation);
-    min_max_switch_op->addIdOperand(block_min_max_default.getId());
-    min_max_switch_op->addImmediateOperand(int32_t(xenos::BlendOp::kMin));
-    min_max_switch_op->addIdOperand(block_min_max_min.getId());
-    min_max_switch_op->addImmediateOperand(int32_t(xenos::BlendOp::kMax));
-    min_max_switch_op->addIdOperand(block_min_max_max.getId());
-    builder_->getBuildPoint()->addInstruction(std::move(min_max_switch_op));
+    equation_switch_op->addIdOperand(equation);
+    // Make addition the default.
+    equation_switch_op->addIdOperand(block_equation_add.getId());
+    equation_switch_op->addImmediateOperand(int32_t(xenos::BlendOp::kSubtract));
+    equation_switch_op->addIdOperand(block_equation_subtract.getId());
+    equation_switch_op->addImmediateOperand(
+        int32_t(xenos::BlendOp::kRevSubtract));
+    equation_switch_op->addIdOperand(block_equation_rev_subtract.getId());
+    equation_switch_op->addImmediateOperand(int32_t(xenos::BlendOp::kMin));
+    equation_switch_op->addIdOperand(block_equation_min.getId());
+    equation_switch_op->addImmediateOperand(int32_t(xenos::BlendOp::kMax));
+    equation_switch_op->addIdOperand(block_equation_max.getId());
+    builder_->getBuildPoint()->addInstruction(std::move(equation_switch_op));
   }
-  block_min_max_default.addPredecessor(&block_min_max_head);
-  block_min_max_min.addPredecessor(&block_min_max_head);
-  block_min_max_max.addPredecessor(&block_min_max_head);
+  block_equation_add.addPredecessor(&block_equation_head);
+  block_equation_subtract.addPredecessor(&block_equation_head);
+  block_equation_rev_subtract.addPredecessor(&block_equation_head);
+  block_equation_min.addPredecessor(&block_equation_head);
+  block_equation_max.addPredecessor(&block_equation_head);
+
+  // Addition case (default).
+  builder_->setBuildPoint(&block_equation_add);
+  spv::Id result_add = builder_->createNoContractionBinOp(
+      spv::OpFAdd, value_type, term_source, term_dest);
+  builder_->createBranch(&block_equation_merge);
+
+  // Subtraction case.
+  builder_->setBuildPoint(&block_equation_subtract);
+  spv::Id result_subtract = builder_->createNoContractionBinOp(
+      spv::OpFSub, value_type, term_source, term_dest);
+  builder_->createBranch(&block_equation_merge);
+
+  // Reverse subtraction case.
+  builder_->setBuildPoint(&block_equation_rev_subtract);
+  spv::Id result_rev_subtract = builder_->createNoContractionBinOp(
+      spv::OpFSub, value_type, term_dest, term_source);
+  builder_->createBranch(&block_equation_merge);
 
   // Min case.
-  builder_->setBuildPoint(&block_min_max_min);
-  spv::Id result_min = builder_->createBinBuiltinCall(
-      value_type, ext_inst_glsl_std_450_, GLSLstd450FMin,
-      is_alpha ? source_alpha_clamped : source_color_clamped,
-      is_alpha ? dest_alpha : dest_color);
-  builder_->createBranch(&block_min_max_merge);
+  builder_->setBuildPoint(&block_equation_min);
+  spv::Id result_min =
+      builder_->createBinBuiltinCall(value_type, ext_inst_glsl_std_450_,
+                                     GLSLstd450FMin, term_source, term_dest);
+  builder_->createBranch(&block_equation_merge);
 
   // Max case.
-  builder_->setBuildPoint(&block_min_max_max);
-  spv::Id result_max = builder_->createBinBuiltinCall(
-      value_type, ext_inst_glsl_std_450_, GLSLstd450FMax,
-      is_alpha ? source_alpha_clamped : source_color_clamped,
-      is_alpha ? dest_alpha : dest_color);
-  builder_->createBranch(&block_min_max_merge);
+  builder_->setBuildPoint(&block_equation_max);
+  spv::Id result_max =
+      builder_->createBinBuiltinCall(value_type, ext_inst_glsl_std_450_,
+                                     GLSLstd450FMax, term_source, term_dest);
+  builder_->createBranch(&block_equation_merge);
 
-  // Blending with factors.
-  spv::Id result_factors;
-  {
-    builder_->setBuildPoint(&block_min_max_default);
-
-    spv::Id term_source, term_dest;
-    if (is_alpha) {
-      term_source = FSI_ApplyAlphaBlendFactor(
-          source_alpha_clamped, is_fixed_point, clamp_min_value,
-          clamp_max_value, source_factor, source_alpha_clamped, dest_alpha,
-          constant_alpha_clamped);
-      term_dest = FSI_ApplyAlphaBlendFactor(dest_alpha, is_fixed_point,
-                                            clamp_min_value, clamp_max_value,
-                                            dest_factor, source_alpha_clamped,
-                                            dest_alpha, constant_alpha_clamped);
-    } else {
-      term_source = FSI_ApplyColorBlendFactor(
-          source_color_clamped, is_fixed_point, clamp_min_value,
-          clamp_max_value, source_factor, source_color_clamped,
-          source_alpha_clamped, dest_color, dest_alpha, constant_color_clamped,
-          constant_alpha_clamped);
-      term_dest = FSI_ApplyColorBlendFactor(
-          dest_color, is_fixed_point, clamp_min_value, clamp_max_value,
-          dest_factor, source_color_clamped, source_alpha_clamped, dest_color,
-          dest_alpha, constant_color_clamped, constant_alpha_clamped);
-    }
-
-    spv::Block& block_signs_head = *builder_->getBuildPoint();
-    spv::Block& block_signs_add = builder_->makeNewBlock();
-    spv::Block& block_signs_subtract = builder_->makeNewBlock();
-    spv::Block& block_signs_reverse_subtract = builder_->makeNewBlock();
-    spv::Block& block_signs_merge = builder_->makeNewBlock();
-    builder_->createSelectionMerge(&block_signs_merge,
-                                   spv::SelectionControlDontFlattenMask);
-    {
-      std::unique_ptr<spv::Instruction> signs_switch_op =
-          std::make_unique<spv::Instruction>(spv::OpSwitch);
-      signs_switch_op->addIdOperand(equation);
-      // Make addition the default.
-      signs_switch_op->addIdOperand(block_signs_add.getId());
-      signs_switch_op->addImmediateOperand(int32_t(xenos::BlendOp::kSubtract));
-      signs_switch_op->addIdOperand(block_signs_subtract.getId());
-      signs_switch_op->addImmediateOperand(
-          int32_t(xenos::BlendOp::kRevSubtract));
-      signs_switch_op->addIdOperand(block_signs_reverse_subtract.getId());
-      builder_->getBuildPoint()->addInstruction(std::move(signs_switch_op));
-    }
-    block_signs_add.addPredecessor(&block_signs_head);
-    block_signs_subtract.addPredecessor(&block_signs_head);
-    block_signs_reverse_subtract.addPredecessor(&block_signs_head);
-
-    // Addition case.
-    builder_->setBuildPoint(&block_signs_add);
-    spv::Id result_add = builder_->createNoContractionBinOp(
-        spv::OpFAdd, value_type, term_source, term_dest);
-    builder_->createBranch(&block_signs_merge);
-
-    // Subtraction case.
-    builder_->setBuildPoint(&block_signs_subtract);
-    spv::Id result_subtract = builder_->createNoContractionBinOp(
-        spv::OpFSub, value_type, term_source, term_dest);
-    builder_->createBranch(&block_signs_merge);
-
-    // Reverse subtraction case.
-    builder_->setBuildPoint(&block_signs_reverse_subtract);
-    spv::Id result_reverse_subtract = builder_->createNoContractionBinOp(
-        spv::OpFSub, value_type, term_dest, term_source);
-    builder_->createBranch(&block_signs_merge);
-
-    // Selection between the signs involved in the addition.
-    builder_->setBuildPoint(&block_signs_merge);
-    id_vector_temp_.clear();
-    id_vector_temp_.reserve(2 * 3);
-    id_vector_temp_.push_back(result_add);
-    id_vector_temp_.push_back(block_signs_add.getId());
-    id_vector_temp_.push_back(result_subtract);
-    id_vector_temp_.push_back(block_signs_subtract.getId());
-    id_vector_temp_.push_back(result_reverse_subtract);
-    id_vector_temp_.push_back(block_signs_reverse_subtract.getId());
-    result_factors =
-        builder_->createOp(spv::OpPhi, value_type, id_vector_temp_);
-    builder_->createBranch(&block_min_max_merge);
-  }
-  // Get the latest block for blending with factors after all the control flow.
-  spv::Block& block_min_max_default_end = *builder_->getBuildPoint();
-
-  builder_->setBuildPoint(&block_min_max_merge);
-  // Choose out of min, max, and blending with factors.
+  // Merge and create phi for the result.
+  builder_->setBuildPoint(&block_equation_merge);
   id_vector_temp_.clear();
-  id_vector_temp_.reserve(2 * 3);
+  id_vector_temp_.push_back(result_add);
+  id_vector_temp_.push_back(block_equation_add.getId());
+  id_vector_temp_.push_back(result_subtract);
+  id_vector_temp_.push_back(block_equation_subtract.getId());
+  id_vector_temp_.push_back(result_rev_subtract);
+  id_vector_temp_.push_back(block_equation_rev_subtract.getId());
   id_vector_temp_.push_back(result_min);
-  id_vector_temp_.push_back(block_min_max_min.getId());
+  id_vector_temp_.push_back(block_equation_min.getId());
   id_vector_temp_.push_back(result_max);
-  id_vector_temp_.push_back(block_min_max_max.getId());
-  id_vector_temp_.push_back(result_factors);
-  id_vector_temp_.push_back(block_min_max_default_end.getId());
-  return builder_->createOp(spv::OpPhi, value_type, id_vector_temp_);
+  id_vector_temp_.push_back(block_equation_max.getId());
+  spv::Id result_unclamped =
+      builder_->createOp(spv::OpPhi, value_type, id_vector_temp_);
+
+  return FSI_FlushNaNClampAndInBlending(result_unclamped, is_fixed_point,
+                                        clamp_min_value, clamp_max_value);
 }
 
 void SpirvShaderTranslator::FSI_AlphaToMaskSample(

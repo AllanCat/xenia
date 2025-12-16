@@ -34,7 +34,7 @@ class SpirvShaderTranslator : public ShaderTranslator {
     // TODO(Triang3l): Change to 0xYYYYMMDD once it's out of the rapid
     // prototyping stage (easier to do small granular updates with an
     // incremental counter).
-    static constexpr uint32_t kVersion = 7;
+    static constexpr uint32_t kVersion = 8;
 
     enum class DepthStencilMode : uint32_t {
       kNoModifiers,
@@ -83,6 +83,12 @@ class SpirvShaderTranslator : public ShaderTranslator {
       uint32_t param_gen_point : 1;
       // For host render targets - depth / stencil output mode.
       DepthStencilMode depth_stencil_mode : 3;
+      // For host render targets with MIN/MAX blend op - the source blend factor
+      // to pre-multiply the shader output by (since Vulkan/D3D12 MIN/MAX
+      // ignores blend factors, but Xbox 360 applies them). kOne means no
+      // pre-multiply. Only RT0 is supported for now.
+      xenos::BlendFactor rt0_blend_rgb_factor_for_premult : 5;
+      xenos::BlendFactor rt0_blend_a_factor_for_premult : 5;
     } pixel;
     uint64_t value = 0;
 
