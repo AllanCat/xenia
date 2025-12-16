@@ -1079,6 +1079,11 @@ std::unique_ptr<TextureCache::Texture> VulkanTextureCache::CreateTexture(
   image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
   image_create_info.usage =
       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+  // For scaled resolve textures with mips, we need transfer source to generate
+  // mip levels via blit from the base level.
+  if (key.scaled_resolve && key.mip_max_level > 0) {
+    image_create_info.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+  }
   image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
   image_create_info.queueFamilyIndexCount = 0;
   image_create_info.pQueueFamilyIndices = nullptr;
@@ -1157,7 +1162,14 @@ bool VulkanTextureCache::LoadTextureDataFromResidentMemoryImpl(Texture& texture,
   uint32_t bytes_per_block = guest_format_info->bytes_per_block();
   uint32_t level_first = load_base ? 0 : 1;
   uint32_t level_last = load_mips ? texture_key.mip_max_level : 0;
-  assert_true(level_first <= level_last);
+  // For scaled resolve textures, we only load level 0 from the scaled buffer -
+  // mips will be generated via blit.
+  uint32_t level_last_for_blit_gen = 0;
+  if (texture_key.scaled_resolve && level_last > 0) {
+    level_last_for_blit_gen = level_last;
+    level_last = 0;  // Only load base level from buffer
+  }
+  assert_true(level_first <= level_last || level_last_for_blit_gen > 0);
   uint32_t level_packed = guest_layout.packed_level;
   uint32_t level_stored_first = std::min(level_first, level_packed);
   uint32_t level_stored_last = std::min(level_last, level_packed);
@@ -1385,7 +1397,10 @@ bool VulkanTextureCache::LoadTextureDataFromResidentMemoryImpl(Texture& texture,
         &write_descriptor_set_source_base_buffer_info;
     write_descriptor_set_source_base.pTexelBufferView = nullptr;
   }
-  if (level_last != 0) {
+  // For scaled resolve textures, we don't load mips from buffers - they will
+  // be generated via blit from the base level. For unscaled textures, load
+  // mips from shared memory as usual.
+  if (level_last != 0 && !texture_key.scaled_resolve) {
     descriptor_set_source_mips =
         command_processor_.AllocateSingleTransientDescriptor(
             VulkanCommandProcessor::SingleTransientDescriptorLayout ::
@@ -1393,10 +1408,7 @@ bool VulkanTextureCache::LoadTextureDataFromResidentMemoryImpl(Texture& texture,
     if (!descriptor_set_source_mips) {
       return false;
     }
-    // TODO: Implement scaled mips support similar to D3D12.
-    // Currently mips are always loaded from unscaled shared memory even when
-    // the base texture is scaled. D3D12 properly handles scaled mips in
-    // D3D12TextureCache::LoadTextureDataFromResidentMemoryImpl.
+    // Regular unscaled texture - use shared memory
     write_descriptor_set_source_mips_buffer_info.buffer =
         vulkan_shared_memory.buffer();
     write_descriptor_set_source_mips_buffer_info.offset = texture_key.mip_page
@@ -1613,6 +1625,97 @@ bool VulkanTextureCache::LoadTextureDataFromResidentMemoryImpl(Texture& texture,
     copy_region.imageExtent.height =
         std::max((height * texture_resolution_scale_y) >> level, UINT32_C(1));
     copy_region.imageExtent.depth = std::max(depth >> level, UINT32_C(1));
+  }
+
+  // Generate mip levels for scaled resolve textures via blit.
+  if (level_last_for_blit_gen > 0) {
+    VkImage image = vulkan_texture.image();
+    uint32_t scaled_width = width * texture_resolution_scale_x;
+    uint32_t scaled_height = height * texture_resolution_scale_y;
+
+    // Generate each mip level by blitting from the previous level.
+    for (uint32_t level = 1; level <= level_last_for_blit_gen; ++level) {
+      uint32_t src_width = std::max(scaled_width >> (level - 1), UINT32_C(1));
+      uint32_t src_height = std::max(scaled_height >> (level - 1), UINT32_C(1));
+      uint32_t src_depth = std::max(depth >> (level - 1), UINT32_C(1));
+      uint32_t dst_width = std::max(scaled_width >> level, UINT32_C(1));
+      uint32_t dst_height = std::max(scaled_height >> level, UINT32_C(1));
+      uint32_t dst_depth = std::max(depth >> level, UINT32_C(1));
+      // VkImageBlit offsets are int32_t - ensure dimensions fit.
+      assert_true(src_width <= INT32_MAX && src_height <= INT32_MAX &&
+                  src_depth <= INT32_MAX);
+      assert_true(dst_width <= INT32_MAX && dst_height <= INT32_MAX &&
+                  dst_depth <= INT32_MAX);
+
+      // Transition source mip (level - 1) to TRANSFER_SRC_OPTIMAL.
+      {
+        VkImageMemoryBarrier src_barrier = {};
+        src_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        src_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        src_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        src_barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        src_barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        src_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        src_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        src_barrier.image = image;
+        src_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        src_barrier.subresourceRange.baseMipLevel = level - 1;
+        src_barrier.subresourceRange.levelCount = 1;
+        src_barrier.subresourceRange.baseArrayLayer = 0;
+        src_barrier.subresourceRange.layerCount = array_size;
+        command_buffer.CmdVkPipelineBarrier(
+            VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
+            0, nullptr, 0, nullptr, 1, &src_barrier);
+      }
+
+      // Blit from level - 1 to level.
+      VkImageBlit blit_region = {};
+      blit_region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+      blit_region.srcSubresource.mipLevel = level - 1;
+      blit_region.srcSubresource.baseArrayLayer = 0;
+      blit_region.srcSubresource.layerCount = array_size;
+      blit_region.srcOffsets[0] = {0, 0, 0};
+      blit_region.srcOffsets[1] = {static_cast<int32_t>(src_width),
+                                   static_cast<int32_t>(src_height),
+                                   static_cast<int32_t>(src_depth)};
+      blit_region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+      blit_region.dstSubresource.mipLevel = level;
+      blit_region.dstSubresource.baseArrayLayer = 0;
+      blit_region.dstSubresource.layerCount = array_size;
+      blit_region.dstOffsets[0] = {0, 0, 0};
+      blit_region.dstOffsets[1] = {static_cast<int32_t>(dst_width),
+                                   static_cast<int32_t>(dst_height),
+                                   static_cast<int32_t>(dst_depth)};
+
+      command_buffer.CmdVkBlitImage(image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                    image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                    1, &blit_region, VK_FILTER_LINEAR);
+    }
+
+    // Transition all mip levels to the final layout (TRANSFER_DST for now,
+    // will be transitioned to shader read when used).
+    // Level 0 to level_last_for_blit_gen - 1 are in TRANSFER_SRC_OPTIMAL.
+    // Level level_last_for_blit_gen is in TRANSFER_DST_OPTIMAL (no change
+    // needed).
+    if (level_last_for_blit_gen > 0) {
+      VkImageMemoryBarrier final_barrier = {};
+      final_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+      final_barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+      final_barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+      final_barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+      final_barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+      final_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+      final_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+      final_barrier.image = image;
+      final_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+      final_barrier.subresourceRange.baseMipLevel = 0;
+      final_barrier.subresourceRange.levelCount = level_last_for_blit_gen;
+      final_barrier.subresourceRange.baseArrayLayer = 0;
+      final_barrier.subresourceRange.layerCount = array_size;
+      command_buffer.CmdVkPipelineBarrier(
+          VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0,
+          nullptr, 0, nullptr, 1, &final_barrier);
+    }
   }
 
   return true;
