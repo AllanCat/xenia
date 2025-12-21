@@ -791,8 +791,8 @@ VkSampler VulkanTextureCache::UseSampler(SamplerParameters parameters,
   sampler_create_info.magFilter =
       parameters.mag_linear ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
   sampler_create_info.minFilter =
-      parameters.mag_linear ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
-  sampler_create_info.mipmapMode = parameters.mag_linear
+      parameters.min_linear ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
+  sampler_create_info.mipmapMode = parameters.mip_linear
                                        ? VK_SAMPLER_MIPMAP_MODE_LINEAR
                                        : VK_SAMPLER_MIPMAP_MODE_NEAREST;
   static constexpr VkSamplerAddressMode kAddressModeMap[] = {
