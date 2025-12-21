@@ -3741,6 +3741,10 @@ VkShaderModule VulkanRenderTargetCache::GetTransferShader(
         }
       }
     }
+    // For stencil bit output, use stencil directly for the discard check.
+    if (packed == spv::NoResult && mode.output == TransferOutput::kStencilBit) {
+      packed = source_stencil[0];
+    }
     switch (mode.output) {
       case TransferOutput::kColor: {
         // Unless a special path was taken, unpack the raw 32bpp value into the
