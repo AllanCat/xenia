@@ -1063,13 +1063,6 @@ bool VulkanRenderTargetCache::Resolve(const Memory& memory,
       uint32_t dump_pitch;
       resolve_info.GetCopyEdramTileSpan(dump_base, dump_row_length_used,
                                         dump_rows, dump_pitch);
-      // Scale tile parameters for resolution scaling to match resolve shader
-      // expectations
-      if (IsDrawResolutionScaled()) {
-        dump_row_length_used *= draw_resolution_scale_x();
-        dump_rows *= draw_resolution_scale_y();
-        dump_pitch *= draw_resolution_scale_x();
-      }
       DumpRenderTargets(dump_base, dump_row_length_used, dump_rows, dump_pitch);
     }
 
