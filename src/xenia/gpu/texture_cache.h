@@ -69,6 +69,14 @@ class TextureCache {
 
   // Returns whether the actual scale is not smaller than the requested one.
   static bool GetConfigDrawResolutionScale(uint32_t& x_out, uint32_t& y_out);
+
+  // Clamps the resolution scale based on device capabilities.
+  // sparse_bind_supported: whether the device supports sparse/tiled resources
+  // virtual_address_bits: max bits for virtual address per resource (0 = no
+  // limit) Returns true if scale was not clamped.
+  static bool ClampDrawResolutionScaleToMaxSupported(
+      uint32_t& scale_x, uint32_t& scale_y, bool sparse_bind_supported,
+      uint32_t virtual_address_bits_per_resource = 0);
   uint32_t draw_resolution_scale_x() const { return draw_resolution_scale_x_; }
   uint32_t draw_resolution_scale_y() const { return draw_resolution_scale_y_; }
 

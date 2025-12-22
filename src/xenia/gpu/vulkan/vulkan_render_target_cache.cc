@@ -1156,17 +1156,9 @@ bool VulkanRenderTargetCache::Resolve(const Memory& memory,
                   draw_resolution_scale_x() * draw_resolution_scale_y();
               uint64_t scaled_offset =
                   uint64_t(dest_address) * draw_resolution_scale_area;
-
-              // Get the buffer's base offset to calculate relative offset
-              uint64_t buffer_relative_offset = 0;
-              size_t buffer_index =
-                  texture_cache.GetScaledResolveCurrentBufferIndex();
-              auto* buffer_info =
-                  texture_cache.GetScaledResolveBufferInfo(buffer_index);
-              if (buffer_info) {
-                buffer_relative_offset =
-                    scaled_offset - buffer_info->range_start_scaled;
-              }
+              uint64_t buffer_relative_offset =
+                  scaled_offset -
+                  texture_cache.GetCurrentScaledResolveBufferBaseOffset();
 
               write_descriptor_set_dest_buffer_info.buffer = scaled_buffer;
               write_descriptor_set_dest_buffer_info.offset =

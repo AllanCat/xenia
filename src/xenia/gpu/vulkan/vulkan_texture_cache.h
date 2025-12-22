@@ -122,6 +122,7 @@ class VulkanTextureCache final : public TextureCache {
                                  xenos::TextureFormat& format_out);
 
   // Scaled resolve buffer management (for use by VulkanRenderTargetCache)
+  // Simple non-overlapping buffer (fallback when sparse binding unavailable)
   struct ScaledResolveBuffer {
     VkBuffer buffer = VK_NULL_HANDLE;
     VmaAllocation allocation = VK_NULL_HANDLE;
@@ -129,6 +130,24 @@ class VulkanTextureCache final : public TextureCache {
     uint64_t range_start_scaled = 0;
     uint64_t range_length_scaled = 0;
   };
+
+  // Sparse buffer wrapper for overlapping 2GB windows
+  class ScaledResolveSparseBuffer {
+   public:
+    explicit ScaledResolveSparseBuffer(VkBuffer buffer) : buffer_(buffer) {}
+
+    VkBuffer buffer() const { return buffer_; }
+
+   private:
+    VkBuffer buffer_ = VK_NULL_HANDLE;
+  };
+
+  // Constants for sparse scaled resolve
+  static constexpr uint32_t kScaledResolveHeapSizeLog2 = 24;  // 16MB heaps
+  static constexpr uint32_t kScaledResolveHeapSize =
+      uint32_t(1) << kScaledResolveHeapSizeLog2;
+  static constexpr uint64_t kScaledResolveSparseBufferSize =
+      uint64_t(2) << 30;  // 2GB per buffer
 
   // Public scaled resolve buffer methods for use by VulkanRenderTargetCache
   bool EnsureScaledResolveMemoryCommittedPublic(
@@ -143,6 +162,20 @@ class VulkanTextureCache final : public TextureCache {
                                      uint32_t length_scaled_alignment_log2 = 0);
 
   VkBuffer GetCurrentScaledResolveBuffer() const;
+
+  // Returns the base scaled address that the current buffer starts at.
+  // For sparse buffers: buffer N starts at N GB (N << 30)
+  // For simple buffers: returns the buffer's range_start_scaled
+  uint64_t GetCurrentScaledResolveBufferBaseOffset() const {
+    if (sparse_scaled_resolve_supported_) {
+      return uint64_t(scaled_resolve_current_buffer_index_) << 30;
+    }
+    if (scaled_resolve_current_buffer_index_ < scaled_resolve_buffers_.size()) {
+      return scaled_resolve_buffers_[scaled_resolve_current_buffer_index_]
+          .range_start_scaled;
+    }
+    return 0;
+  }
 
   size_t GetScaledResolveCurrentBufferIndex() const {
     return scaled_resolve_current_buffer_index_;
@@ -352,6 +385,20 @@ class VulkanTextureCache final : public TextureCache {
 
   xenos::ClampMode NormalizeClampMode(xenos::ClampMode clamp_mode) const;
 
+  // Sparse scaled resolve helper functions
+  bool InitializeSparseScaledResolve();
+  void ShutdownSparseScaledResolve();
+  size_t GetScaledResolveSparseBufferCount() const;
+  std::array<size_t, 2> GetPossibleScaledResolveBufferIndices(
+      uint64_t address_scaled) const;
+  bool EnsureScaledResolveMemoryCommittedSparse(
+      uint32_t start_unscaled, uint32_t length_unscaled,
+      uint32_t length_scaled_alignment_log2);
+  bool MakeScaledResolveRangeCurrentSparse(
+      uint32_t start_unscaled, uint32_t length_unscaled,
+      uint32_t length_scaled_alignment_log2);
+  void BindHeapToOverlappingBuffers(uint32_t heap_index, VkDeviceMemory heap);
+
   VulkanCommandProcessor& command_processor_;
   VkPipelineStageFlags guest_shader_pipeline_stages_;
 
@@ -392,12 +439,31 @@ class VulkanTextureCache final : public TextureCache {
   std::pair<const SamplerParameters, Sampler>* sampler_used_first_ = nullptr;
   std::pair<const SamplerParameters, Sampler>* sampler_used_last_ = nullptr;
 
-  // Scaled resolve buffer storage
+  // Scaled resolve buffer storage (simple non-overlapping, fallback path)
   std::vector<ScaledResolveBuffer> scaled_resolve_buffers_;
   // Current scaled resolve range tracking
   uint64_t scaled_resolve_current_range_start_scaled_ = 0;
   uint64_t scaled_resolve_current_range_length_scaled_ = 0;
   size_t scaled_resolve_current_buffer_index_ = SIZE_MAX;
+
+  // Sparse scaled resolve (overlapping 2GB windows)
+  bool sparse_scaled_resolve_supported_ = false;
+  // 2GB overlapping sparse buffers - buffer N covers [N GB ... (N+2) GB)
+  // For 3x3 scale (4.5GB), need 4 buffers: 0:[0-2GB), 1:[1-3GB), 2:[2-4GB),
+  // 3:[3-4.5GB)
+  static constexpr size_t kMaxScaledResolveSparseBuffers =
+      (uint64_t(SharedMemory::kBufferSize) * kMaxDrawResolutionScaleAlongAxis *
+           kMaxDrawResolutionScaleAlongAxis -
+       1) >>
+      30;
+  std::array<std::unique_ptr<ScaledResolveSparseBuffer>,
+             kMaxScaledResolveSparseBuffers>
+      scaled_resolve_sparse_buffers_;
+  // 16MB heaps that can be mapped to multiple buffer regions
+  std::vector<VkDeviceMemory> scaled_resolve_heaps_;
+  uint32_t scaled_resolve_heap_count_ = 0;
+  // Memory type for sparse allocations
+  uint32_t scaled_resolve_memory_type_ = UINT32_MAX;
 };
 
 }  // namespace vulkan

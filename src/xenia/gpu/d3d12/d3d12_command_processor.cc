@@ -851,8 +851,11 @@ bool D3D12CommandProcessor::SetupContext() {
       TextureCache::GetConfigDrawResolutionScale(draw_resolution_scale_x,
                                                  draw_resolution_scale_y);
 
-  if (!D3D12TextureCache::ClampDrawResolutionScaleToMaxSupported(
-          draw_resolution_scale_x, draw_resolution_scale_y, provider)) {
+  bool has_tiled_resources =
+      provider.GetTiledResourcesTier() >= D3D12_TILED_RESOURCES_TIER_1;
+  if (!TextureCache::ClampDrawResolutionScaleToMaxSupported(
+          draw_resolution_scale_x, draw_resolution_scale_y, has_tiled_resources,
+          provider.GetVirtualAddressBitsPerResource())) {
     draw_resolution_scale_not_clamped = false;
   }
   if (!draw_resolution_scale_not_clamped) {

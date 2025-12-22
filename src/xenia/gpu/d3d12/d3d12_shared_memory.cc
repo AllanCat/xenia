@@ -18,14 +18,8 @@
 #include "xenia/gpu/d3d12/d3d12_command_processor.h"
 #include "xenia/ui/d3d12/d3d12_util.h"
 
-DEFINE_bool(d3d12_tiled_shared_memory, true,
-            "Enable tiled resources for shared memory emulation. Disabling "
-            "them increases video memory usage - a 512 MB buffer is created - "
-            "but allows graphics debuggers that don't support tiled resources "
-            "to work.",
-            "D3D12");
-
 DECLARE_bool(gpu_allow_invalid_upload_range);
+DECLARE_bool(tiled_shared_memory);
 
 namespace xe {
 namespace gpu {
@@ -50,7 +44,7 @@ bool D3D12SharedMemory::Initialize() {
   ui::d3d12::util::FillBufferResourceDesc(
       buffer_desc, kBufferSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
   buffer_state_ = D3D12_RESOURCE_STATE_COPY_DEST;
-  if (cvars::d3d12_tiled_shared_memory &&
+  if (cvars::tiled_shared_memory &&
       provider.GetTiledResourcesTier() !=
           D3D12_TILED_RESOURCES_TIER_NOT_SUPPORTED &&
       !provider.GetGraphicsAnalysis()) {

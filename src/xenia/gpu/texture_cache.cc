@@ -12,17 +12,19 @@
 #include "xenia/base/clock.h"
 #include "xenia/base/cvar.h"
 #include "xenia/base/logging.h"
+#include "xenia/base/math.h"
 #include "xenia/base/profiling.h"
 #include "xenia/gpu/gpu_flags.h"
+#include "xenia/gpu/shared_memory.h"
 
 DEFINE_int32(
     draw_resolution_scale_x, 1,
     "Integer pixel width scale used for scaling the rendering resolution "
     "opaquely to the game.\n"
-    "1, 2 and 3 may be supported, but support of anything above 1 depends on "
-    "the device properties, such as whether it supports sparse binding / tiled "
-    "resources, the number of virtual address bits per resource, and other "
-    "factors.\n"
+    "Values from 1 to 7 may be supported, depending on device capabilities. "
+    "Requires sparse binding (Vulkan) or tiled resources (D3D12) for scales "
+    "above 1x1. The emulator will automatically clamp to the maximum supported "
+    "scale if the requested value exceeds device limits.\n"
     "Various effects and parts of game rendering pipelines may work "
     "incorrectly as pixels become ambiguous from the game's perspective and "
     "because half-pixel offset (which normally doesn't affect coverage when "
@@ -59,6 +61,10 @@ DEFINE_uint32(
     "textures - so with 2x2 resolution scaling, the soft limit will be 360 + "
     "96 MB, and with 3x3, it will be 360 + 216 MB.",
     "GPU");
+DEFINE_bool(tiled_shared_memory, true,
+            "Enable tiled/sparse resources for efficient large address space "
+            "support. Disable for graphics debugger compatibility.",
+            "GPU");
 
 namespace xe {
 namespace gpu {
@@ -185,6 +191,43 @@ bool TextureCache::GetConfigDrawResolutionScale(uint32_t& x_out,
   x_out = clamped_x;
   y_out = clamped_y;
   return clamped_x == config_x && clamped_y == config_y;
+}
+
+bool TextureCache::ClampDrawResolutionScaleToMaxSupported(
+    uint32_t& scale_x, uint32_t& scale_y, bool sparse_bind_supported,
+    uint32_t virtual_address_bits_per_resource) {
+  // Without sparse/tiled resource support, resolution scaling is not possible
+  // because the scaled address space exceeds what simple buffers can handle.
+  if (!sparse_bind_supported) {
+    bool was_clamped = scale_x > 1 || scale_y > 1;
+    scale_x = 1;
+    scale_y = 1;
+    return !was_clamped;
+  }
+
+  // With sparse binding, limit based on virtual address space if specified.
+  bool was_clamped = false;
+  if (virtual_address_bits_per_resource > 0) {
+    while (scale_x > 1 || scale_y > 1) {
+      uint64_t highest_scaled_address =
+          uint64_t(SharedMemory::kBufferSize) * (scale_x * scale_y) - 1;
+      if (uint32_t(64) - xe::lzcnt(highest_scaled_address) <=
+          virtual_address_bits_per_resource) {
+        break;
+      }
+      // When reducing from a square size, prefer decreasing the horizontal
+      // resolution as vertical resolution difference is visible more clearly in
+      // perspective.
+      was_clamped = true;
+      if (scale_x >= scale_y) {
+        --scale_x;
+      } else {
+        --scale_y;
+      }
+    }
+  }
+
+  return !was_clamped;
 }
 
 void TextureCache::ClearCache() { DestroyAllTextures(); }

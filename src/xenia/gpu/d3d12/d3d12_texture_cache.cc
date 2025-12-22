@@ -846,40 +846,6 @@ void D3D12TextureCache::WriteSampler(SamplerParameters parameters,
   device->CreateSampler(&desc, handle);
 }
 
-bool D3D12TextureCache::ClampDrawResolutionScaleToMaxSupported(
-    uint32_t& scale_x, uint32_t& scale_y,
-    const ui::d3d12::D3D12Provider& provider) {
-  bool was_clamped;
-  if (provider.GetTiledResourcesTier() < D3D12_TILED_RESOURCES_TIER_1) {
-    was_clamped = scale_x > 1 || scale_y > 1;
-    scale_x = 1;
-    scale_y = 1;
-    return !was_clamped;
-  }
-  // Limit to the virtual address space available for a resource.
-  was_clamped = false;
-  uint32_t virtual_address_bits_per_resource =
-      provider.GetVirtualAddressBitsPerResource();
-  while (scale_x > 1 || scale_y > 1) {
-    uint64_t highest_scaled_address =
-        uint64_t(SharedMemory::kBufferSize) * (scale_x * scale_y) - 1;
-    if (uint32_t(64) - xe::lzcnt(highest_scaled_address) <=
-        virtual_address_bits_per_resource) {
-      break;
-    }
-    // When reducing from a square size, prefer decreasing the horizontal
-    // resolution as vertical resolution difference is visible more clearly in
-    // perspective.
-    was_clamped = true;
-    if (scale_x >= scale_y) {
-      --scale_x;
-    } else {
-      --scale_y;
-    }
-  }
-  return !was_clamped;
-}
-
 bool D3D12TextureCache::EnsureScaledResolveMemoryCommitted(
     uint32_t start_unscaled, uint32_t length_unscaled,
     uint32_t length_scaled_alignment_log2) {

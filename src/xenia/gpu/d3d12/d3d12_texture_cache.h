@@ -126,10 +126,6 @@ class D3D12TextureCache final : public TextureCache {
   void WriteSampler(SamplerParameters parameters,
                     D3D12_CPU_DESCRIPTOR_HANDLE handle) const;
 
-  // Returns whether the actual scale is not smaller than the requested one.
-  static bool ClampDrawResolutionScaleToMaxSupported(
-      uint32_t& scale_x, uint32_t& scale_y,
-      const ui::d3d12::D3D12Provider& provider);
   // Ensures the tiles backing the range in the buffers are allocated.
   bool EnsureScaledResolveMemoryCommitted(
       uint32_t start_unscaled, uint32_t length_unscaled,

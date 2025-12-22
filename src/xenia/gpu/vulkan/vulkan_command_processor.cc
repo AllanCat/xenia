@@ -276,10 +276,26 @@ bool VulkanCommandProcessor::SetupContext() {
                                          << shared_memory_binding_count_log2;
 
   // Requires the transient descriptor set layouts.
-  // Get draw resolution scale using the same method as D3D12
+  // Get draw resolution scale and clamp based on device capabilities
   uint32_t draw_resolution_scale_x, draw_resolution_scale_y;
-  TextureCache::GetConfigDrawResolutionScale(draw_resolution_scale_x,
-                                             draw_resolution_scale_y);
+  bool draw_resolution_scale_not_clamped =
+      TextureCache::GetConfigDrawResolutionScale(draw_resolution_scale_x,
+                                                 draw_resolution_scale_y);
+  // Check if sparse binding is supported for resolution scaling
+  bool has_sparse_binding = device_properties.sparseBinding &&
+                            device_properties.sparseResidencyBuffer;
+  if (!TextureCache::ClampDrawResolutionScaleToMaxSupported(
+          draw_resolution_scale_x, draw_resolution_scale_y, has_sparse_binding,
+          0)) {
+    draw_resolution_scale_not_clamped = false;
+  }
+  if (!draw_resolution_scale_not_clamped) {
+    XELOGW(
+        "The requested draw resolution scale is not supported by the device or "
+        "the emulator, reducing to {}x{}",
+        draw_resolution_scale_x, draw_resolution_scale_y);
+  }
+
   render_target_cache_ = std::make_unique<VulkanRenderTargetCache>(
       *register_file_, *memory_, trace_writer_, draw_resolution_scale_x,
       draw_resolution_scale_y, *this);
