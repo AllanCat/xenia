@@ -84,3 +84,8 @@ DEFINE_int32(anisotropic_override, -1,
              "  4 = Force 8x anisotropic filtering\n"
              "  5 = Force 16x anisotropic filtering",
              "GPU");
+
+DEFINE_bool(no_discard_stencil_in_transfer_pipelines, false,
+            "Skip stencil bit discard in render target transfer pipelines. "
+            "May improve performance on some GPUs.",
+            "GPU");

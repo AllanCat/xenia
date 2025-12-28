@@ -37,7 +37,6 @@ DEFINE_bool(
     "Allow stencil reference output usage on Direct3D 12 on Intel GPUs - not "
     "working on UHD Graphics 630 as of March 2021 (driver 27.20.0100.8336).",
     "GPU");
-DEFINE_bool(no_discard_stencil_in_transfer_pipelines, false, "bleh", "GPU");
 // TODO(Triang3l): Make ROV the default when it's optimized better (for
 // instance, using static shader modifications to pass render target
 // parameters).
