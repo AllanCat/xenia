@@ -276,6 +276,11 @@ class TextureCache {
     bool mips_outdated(const global_unique_lock_type& global_lock) const {
       return mips_outdated_;
     }
+    // Lockless accessors for pre-check optimization.
+    // Safe to read without lock - worst case is false positive (outdated when
+    // not).
+    bool base_outdated_lockless() const { return base_outdated_; }
+    bool mips_outdated_lockless() const { return mips_outdated_; }
     void MakeUpToDateAndWatch(const global_unique_lock_type& global_lock);
 
     void WatchCallback(const global_unique_lock_type& global_lock, bool is_mip);
