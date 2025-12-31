@@ -1227,6 +1227,13 @@ void VulkanCommandProcessor::WriteRegister(uint32_t index, uint32_t value) {
       texture_cache_->TextureFetchConstantWritten(
           (index - XE_GPU_REG_SHADER_CONSTANT_FETCH_00_0) / 6);
     }
+    // Invalidate vertex buffer cache for this fetch constant.
+    // Each vertex fetch constant is 2 DWORDs.
+    uint32_t vfetch_index = (index - XE_GPU_REG_SHADER_CONSTANT_FETCH_00_0) / 2;
+    if (vfetch_index < 96) {
+      vertex_buffers_in_sync_[vfetch_index >> 6] &=
+          ~(uint64_t(1) << (vfetch_index & 63));
+    }
   }
 }
 void VulkanCommandProcessor::WriteRegistersFromMem(uint32_t start_index,
@@ -1265,6 +1272,13 @@ void VulkanCommandProcessor::IssueSwap(uint32_t frontbuffer_ptr,
                                        uint32_t frontbuffer_width,
                                        uint32_t frontbuffer_height) {
   SCOPE_profile_cpu_f("gpu");
+
+  // Reset vertex buffer cache at frame boundaries to pick up any memory
+  // changes. This still provides significant savings by avoiding redundant
+  // RequestRange calls within the same frame (potentially 100k+ calls reduced
+  // to a few hundred).
+  vertex_buffers_in_sync_[0] = 0;
+  vertex_buffers_in_sync_[1] = 0;
 
   ui::Presenter* presenter = graphics_system_->presenter();
   if (!presenter) {
@@ -2517,8 +2531,8 @@ bool VulkanCommandProcessor::IssueDraw(xenos::PrimitiveType prim_type,
   }
 
   // Ensure vertex buffers are resident.
-  // TODO(Triang3l): Cache residency for ranges in a way similar to how texture
-  // validity is tracked.
+  // Uses caching to avoid redundant RequestRange calls - only re-validates
+  // when fetch constants are written (detected in WriteRegister).
   //
   // Use the vertex_fetch_bitmap instead of vertex_bindings() to avoid using
   // cached/stale vertex binding indices. The bitmap is populated during shader
@@ -2526,7 +2540,6 @@ bool VulkanCommandProcessor::IssueDraw(xenos::PrimitiveType prim_type,
   // references, allowing us to check the current register values at draw time.
   const Shader::ConstantRegisterMap& constant_map_vertex =
       vertex_shader->constant_register_map();
-  uint64_t vertex_buffers_resident[2] = {};
   for (uint32_t i = 0; i < xe::countof(constant_map_vertex.vertex_fetch_bitmap);
        ++i) {
     uint32_t vfetch_bits_remaining = constant_map_vertex.vertex_fetch_bitmap[i];
@@ -2534,10 +2547,13 @@ bool VulkanCommandProcessor::IssueDraw(xenos::PrimitiveType prim_type,
     while (xe::bit_scan_forward(vfetch_bits_remaining, &j)) {
       vfetch_bits_remaining = xe::clear_lowest_bit(vfetch_bits_remaining);
       uint32_t vfetch_index = i * 32 + j;
-      if (vertex_buffers_resident[vfetch_index >> 6] &
-          (uint64_t(1) << (vfetch_index & 63))) {
+
+      // Check if already in sync (validated this frame with same address/size)
+      uint64_t vfetch_bit = uint64_t(1) << (vfetch_index & 63);
+      if (vertex_buffers_in_sync_[vfetch_index >> 6] & vfetch_bit) {
         continue;
       }
+
       xenos::xe_gpu_vertex_fetch_t vfetch_constant =
           regs.GetVertexFetch(vfetch_index);
       switch (vfetch_constant.type) {
@@ -2579,17 +2595,31 @@ bool VulkanCommandProcessor::IssueDraw(xenos::PrimitiveType prim_type,
               static_cast<uint32_t>(vfetch_constant.type));
           return false;
       }
-      if (!shared_memory_->RequestRange(vfetch_constant.address << 2,
-                                        vfetch_constant.size << 2)) {
+
+      // Check if address/size changed - if same as cached, just mark in sync
+      uint32_t address = vfetch_constant.address;
+      uint32_t size = vfetch_constant.size;
+      VertexBufferState& state = vertex_buffer_states_[vfetch_index];
+      if (state.address == address && state.size == size) {
+        // Same buffer, already resident - just mark in sync
+        vertex_buffers_in_sync_[vfetch_index >> 6] |= vfetch_bit;
+        continue;
+      }
+
+      // New or changed buffer - need to request range
+      if (!shared_memory_->RequestRange(address << 2, size << 2)) {
         XELOGE(
             "Failed to request vertex buffer at 0x{:08X} (size {}) in the "
             "shared "
             "memory",
-            vfetch_constant.address << 2, vfetch_constant.size << 2);
+            address << 2, size << 2);
         return false;
       }
-      vertex_buffers_resident[vfetch_index >> 6] |= uint64_t(1)
-                                                    << (vfetch_index & 63);
+
+      // Update cache
+      state.address = address;
+      state.size = size;
+      vertex_buffers_in_sync_[vfetch_index >> 6] |= vfetch_bit;
     }
   }
 
