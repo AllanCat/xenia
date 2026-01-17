@@ -616,8 +616,11 @@ VkImageView VulkanTextureCache::GetActiveBindingOrNullImageView(
 
     if (force_special_view) {
       // Get the appropriate texture for signed/unsigned.
+      // Respect swizzled_signs from fetch constant, not just shader request.
       Texture* texture = nullptr;
-      if (is_signed && IsSignedVersionSeparateForFormat(binding->key)) {
+      bool use_signed =
+          is_signed && texture_util::IsAnySignSigned(binding->swizzled_signs);
+      if (use_signed && IsSignedVersionSeparateForFormat(binding->key)) {
         texture = binding->texture_signed;
       } else {
         texture = binding->texture;
@@ -625,7 +628,7 @@ VkImageView VulkanTextureCache::GetActiveBindingOrNullImageView(
       if (texture) {
         image_view =
             static_cast<VulkanTexture*>(texture)->GetOrCreate3DAs2DImageView(
-                is_signed, binding->host_swizzle);
+                use_signed, binding->host_swizzle);
       }
     } else {
       const VulkanTextureBinding& vulkan_binding =

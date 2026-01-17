@@ -708,8 +708,11 @@ uint32_t D3D12TextureCache::GetActiveTextureBindlessSRVIndex(
 
     if (force_special_view) {
       // Determine which texture object to use
+      // Respect swizzled_signs from fetch constant, not just shader request
       Texture* texture = nullptr;
-      if (host_shader_binding.is_signed) {
+      bool use_signed = host_shader_binding.is_signed &&
+                        texture_util::IsAnySignSigned(binding->swizzled_signs);
+      if (use_signed) {
         texture = IsSignedVersionSeparateForFormat(binding->key)
                       ? binding->texture_signed
                       : binding->texture;
