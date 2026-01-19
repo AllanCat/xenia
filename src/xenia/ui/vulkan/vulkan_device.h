@@ -183,6 +183,10 @@ class VulkanDevice {
     bool ext_EXT_memory_budget = false;                 // #238
     // Has optional features not implied by this being true.
     bool ext_1_3_KHR_maintenance4 = false;  // #414
+#if XE_PLATFORM_WIN32
+    // VK_EXT_full_screen_exclusive (#256, Windows only)
+    bool ext_EXT_full_screen_exclusive = false;
+#endif
   };
 
   const Extensions& extensions() const { return extensions_; }

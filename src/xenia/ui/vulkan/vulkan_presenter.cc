@@ -1142,6 +1142,22 @@ VkSwapchainKHR VulkanPresenter::PaintContext::CreateSwapchainForVulkanSurface(
   VkSwapchainCreateInfoKHR swapchain_create_info;
   swapchain_create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
   swapchain_create_info.pNext = nullptr;
+
+#if XE_PLATFORM_WIN32
+  // On Windows, use VK_EXT_full_screen_exclusive to explicitly disallow
+  // fullscreen exclusive mode. This prevents HDR state corruption when
+  // entering/exiting fullscreen, as the Windows compositor remains in control
+  // of the display state throughout the transition.
+  VkSurfaceFullScreenExclusiveInfoEXT full_screen_exclusive_info;
+  if (vulkan_device->extensions().ext_EXT_full_screen_exclusive) {
+    full_screen_exclusive_info.sType =
+        VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT;
+    full_screen_exclusive_info.pNext = nullptr;
+    full_screen_exclusive_info.fullScreenExclusive =
+        VK_FULL_SCREEN_EXCLUSIVE_DISALLOWED_EXT;
+    swapchain_create_info.pNext = &full_screen_exclusive_info;
+  }
+#endif
   swapchain_create_info.flags = 0;
   swapchain_create_info.surface = surface;
   swapchain_create_info.minImageCount =
