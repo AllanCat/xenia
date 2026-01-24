@@ -3150,12 +3150,12 @@ struct CNTLZ_I32 : Sequence<CNTLZ_I32, I<OPCODE_CNTLZ, I8Op, I32Op>> {
       Xbyak::Label end;
       e.inLocalLabel();
 
-      e.bsr(e.rax, i.src1);  // ZF set if i.src1 is 0
+      e.bsr(e.eax, i.src1);  // ZF set if i.src1 is 0
       e.mov(i.dest, 0x20);
       e.jz(end);
 
-      e.xor_(e.rax, 0x1F);
-      e.mov(i.dest, e.rax);
+      e.xor_(e.eax, 0x1F);
+      e.mov(i.dest, e.al);
 
       e.L(end);
       e.outLocalLabel();
@@ -3175,7 +3175,7 @@ struct CNTLZ_I64 : Sequence<CNTLZ_I64, I<OPCODE_CNTLZ, I8Op, I64Op>> {
       e.jz(end);
 
       e.xor_(e.rax, 0x3F);
-      e.mov(i.dest, e.rax);
+      e.mov(i.dest, e.al);
 
       e.L(end);
       e.outLocalLabel();
