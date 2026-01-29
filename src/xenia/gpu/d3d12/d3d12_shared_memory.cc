@@ -422,17 +422,24 @@ bool D3D12SharedMemory::UploadRanges(
                                   upload_range_length << page_size_log2());
 
     if (upload_range_length > 0 && !cvars::gpu_allow_invalid_upload_range) {
+      // Check both start and end of the range for unmapped memory.
+      const uint32_t range_start_addr = upload_range_start << page_size_log2();
       const uint32_t upload_range_last_page =
           upload_range_start + upload_range_length - 1;
+      const uint32_t range_end_addr = upload_range_last_page
+                                      << page_size_log2();
 
-      const memory::PageAccess page_access =
-          memory().GetPhysicalHeap()->QueryRangeAccess(
-              upload_range_last_page << page_size_log2(),
-              upload_range_last_page
-                  << page_size_log2());  // Check only last page
+      const memory::PageAccess start_access =
+          memory().GetPhysicalHeap()->QueryRangeAccess(range_start_addr,
+                                                       range_start_addr);
+      const memory::PageAccess end_access =
+          memory().GetPhysicalHeap()->QueryRangeAccess(range_end_addr,
+                                                       range_end_addr);
 
-      if (page_access == xe::memory::PageAccess::kNoAccess) {
-        XELOGE("Invalid upload range for GPU: {:08X}", upload_range_start);
+      if (start_access == xe::memory::PageAccess::kNoAccess ||
+          end_access == xe::memory::PageAccess::kNoAccess) {
+        XELOGE("Invalid upload range for GPU: {:08X} length {:08X}",
+               upload_range_start, upload_range_length);
         return false;
       }
     }

@@ -19,6 +19,8 @@
 #include "xenia/gpu/vulkan/vulkan_command_processor.h"
 #include "xenia/ui/vulkan/vulkan_util.h"
 
+DECLARE_bool(gpu_allow_invalid_upload_range);
+
 DEFINE_bool(vulkan_sparse_shared_memory, true,
             "Enable sparse binding for shared memory emulation. Disabling it "
             "increases video memory usage - a 512 MB buffer is created - but "
@@ -405,6 +407,30 @@ bool VulkanSharedMemory::UploadRanges(
     uint32_t upload_range_length = upload_page_ranges[i].second;
     trace_writer_.WriteMemoryRead(upload_range_start << page_size_log2(),
                                   upload_range_length << page_size_log2());
+
+    if (upload_range_length > 0 && !cvars::gpu_allow_invalid_upload_range) {
+      const uint32_t range_start_addr = upload_range_start << page_size_log2();
+      const uint32_t upload_range_last_page =
+          upload_range_start + upload_range_length - 1;
+      const uint32_t range_end_addr = upload_range_last_page
+                                      << page_size_log2();
+
+      const memory::PageAccess start_access =
+          memory().GetPhysicalHeap()->QueryRangeAccess(range_start_addr,
+                                                       range_start_addr);
+      const memory::PageAccess end_access =
+          memory().GetPhysicalHeap()->QueryRangeAccess(range_end_addr,
+                                                       range_end_addr);
+      if (start_access == xe::memory::PageAccess::kNoAccess ||
+          end_access == xe::memory::PageAccess::kNoAccess) {
+        XELOGE(
+            "Vulkan shared memory: Invalid upload range {:08X} length {:08X}",
+            upload_range_start, upload_range_length);
+        successful = false;
+        break;
+      }
+    }
+
     while (upload_range_length) {
       VkBuffer upload_buffer;
       VkDeviceSize upload_buffer_offset, upload_buffer_size;
