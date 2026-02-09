@@ -133,30 +133,25 @@ struct GuestTrampolineGroup
   xe_mutex m_mutex;
 
   uint32_t _NewTrampoline(SimpleGuestTrampolineProc proc, bool longterm) {
-    uint32_t result;
-    m_mutex.lock();
+    std::lock_guard<xe_mutex> lock(m_mutex);
     auto iter = this->find(proc);
     if (iter == this->end()) {
       uint32_t new_entry = longterm
                                ? m_backend->CreateLongTermGuestTrampoline(proc)
                                : m_backend->CreateGuestTrampoline(proc);
       this->emplace_hint(iter, proc, new_entry);
-      result = new_entry;
-    } else {
-      result = iter->second;
+      return new_entry;
     }
-    m_mutex.unlock();
-    return result;
+    return iter->second;
   }
 
  public:
   GuestTrampolineGroup(Backend* backend) : m_backend(backend) {}
   ~GuestTrampolineGroup() {
-    m_mutex.lock();
+    std::lock_guard<xe_mutex> lock(m_mutex);
     for (auto&& entry : *this) {
       m_backend->FreeGuestTrampoline(entry.second);
     }
-    m_mutex.unlock();
   }
 
   uint32_t NewLongtermTrampoline(SimpleGuestTrampolineProc proc) {
