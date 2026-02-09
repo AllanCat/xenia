@@ -61,6 +61,7 @@ class XmaContextNew : public XmaContext {
   void Release();
 
  private:
+  void ClearLocked();
   static void SwapInputBuffer(XMA_CONTEXT_DATA* data);
   // Convert sampling rate from ID to frequency.
   static int GetSampleRate(int id);

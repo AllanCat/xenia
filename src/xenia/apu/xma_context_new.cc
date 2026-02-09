@@ -131,7 +131,7 @@ bool XmaContextNew::Work() {
   if (data.IsConsumeOnlyContext()) {
     Consume(&output_rb, &data);
     if (data.output_buffer_read_offset == data.output_buffer_write_offset) {
-      Clear();
+      ClearLocked();
     }
     data.Store(context_ptr);
     return true;
@@ -217,6 +217,10 @@ bool XmaContextNew::Block(bool poll) {
 
 void XmaContextNew::Clear() {
   std::lock_guard<xe_mutex> lock(lock_);
+  ClearLocked();
+}
+
+void XmaContextNew::ClearLocked() {
   XELOGAPU("XmaContext: reset context {}", id());
 
   auto context_ptr = memory()->TranslateVirtual(guest_ptr());
