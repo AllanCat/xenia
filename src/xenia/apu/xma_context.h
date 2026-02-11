@@ -252,7 +252,7 @@ class XmaContext {
 
   // ffmpeg structures
   AVPacket* av_packet_ = nullptr;
-  AVCodec* av_codec_ = nullptr;
+  const AVCodec* av_codec_ = nullptr;
   AVCodecContext* av_context_ = nullptr;
   AVFrame* av_frame_ = nullptr;
 };

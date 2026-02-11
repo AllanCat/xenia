@@ -49,7 +49,7 @@ void XmaContext::DumpRaw(AVFrame* frame, int id) {
   }
   size_t data_size = sizeof(float);
   for (int i = 0; i < frame->nb_samples; i++) {
-    for (int ch = 0; ch < frame->channels; ch++) {
+    for (int ch = 0; ch < frame->ch_layout.nb_channels; ch++) {
       fwrite(frame->data[ch] + data_size * i, 1, data_size, outfile);
     }
   }

@@ -25,6 +25,7 @@ extern "C" {
 #pragma warning(disable : 4101 4244 5033)
 #endif
 #include "third_party/FFmpeg/libavcodec/avcodec.h"
+#include "third_party/FFmpeg/libavutil/channel_layout.h"
 #if XE_COMPILER_MSVC
 #pragma warning(pop)
 #endif
@@ -40,10 +41,7 @@ XmaContextMaster::XmaContextMaster() = default;
 
 XmaContextMaster::~XmaContextMaster() {
   if (av_context_) {
-    if (avcodec_is_open(av_context_)) {
-      avcodec_close(av_context_);
-    }
-    av_free(av_context_);
+    avcodec_free_context(&av_context_);
   }
   if (av_frame_) {
     av_frame_free(&av_frame_);
@@ -78,7 +76,7 @@ int XmaContextMaster::Setup(uint32_t id, Memory* memory, uint32_t guest_ptr) {
   }
 
   // Initialize these to 0. They'll actually be set later.
-  av_context_->channels = 0;
+  av_context_->ch_layout = AVChannelLayout{};
   av_context_->sample_rate = 0;
 
   av_frame_ = av_frame_alloc();
@@ -825,13 +823,14 @@ int XmaContextMaster::PrepareDecoder(uint8_t* packet, int sample_rate,
   // Re-initialize the context with new sample rate and channels.
   uint32_t channels = is_two_channel ? 2 : 1;
   if (av_context_->sample_rate != sample_rate ||
-      av_context_->channels != channels) {
-    // We have to reopen the codec so it'll realloc whatever data it needs.
-    // TODO(DrChat): Find a better way.
-    avcodec_close(av_context_);
+      av_context_->ch_layout.nb_channels != (int)channels) {
+    // We have to recreate the codec context so it'll realloc whatever data it
+    // needs.
+    avcodec_free_context(&av_context_);
+    av_context_ = avcodec_alloc_context3(av_codec_);
 
     av_context_->sample_rate = sample_rate;
-    av_context_->channels = channels;
+    av_channel_layout_default(&av_context_->ch_layout, channels);
 
     if (avcodec_open2(av_context_, av_codec_, NULL) < 0) {
       XELOGE("XmaContext: Failed to reopen FFmpeg context");

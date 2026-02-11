@@ -545,8 +545,15 @@ def get_pr_number():
         return github_ref.split('/')[2]
 
 def git_submodule_update():
-    """Runs a git submodule init and update.
+    """Runs a git submodule sync, init, and update.
     """
+    # Sync submodule URLs from .gitmodules to local config
+    shell_call([
+        "git",
+        "submodule",
+        "sync",
+        ])
+    # Then update all submodules to their recorded commits
     shell_call([
         "git",
         "-c",
