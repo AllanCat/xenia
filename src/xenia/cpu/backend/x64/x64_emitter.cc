@@ -1152,8 +1152,8 @@ static const vec128_t xmm_consts[] = {
         */
     vec128q(0x7fe000007fe000ULL),
 
-    /* XMMF16PackLCPI0*/
-    vec128i(0x8000000),
+    /* XMMF16PackLCPI0 (bias + round-half-down) */
+    vec128i(0x8000FFF),
     /*XMMF16PackLCPI2*/
     vec128i(0x47ffe000),
     /*XMMF16PackLCPI3*/

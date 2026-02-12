@@ -2600,7 +2600,16 @@ static void emit_fast_f16_unpack(X64Emitter& e, const Inst& i,
 template <typename Inst>
 static void emit_fast_f16_pack(X64Emitter& e, const Inst& i,
                                XmmConst final_shuffle) {
+  // XMMF16PackLCPI0 includes bias (0x08000000) + round-half-down (0xFFF).
+  // For round-to-nearest-even, also add the tie-breaker: bit 13 of src.
+  // Bit 13 of (src + bias) == bit 13 of src since the bias doesn't affect
+  // bits 0-26.
   e.vpaddd(e.xmm1, i.src1, e.GetXmmConstPtr(XMMF16PackLCPI0));
+  e.vpsrld(e.xmm0, i.src1, 13);
+  e.vpslld(e.xmm0, e.xmm0, 31);
+  e.vpsrld(e.xmm0, e.xmm0, 31);
+  e.vpaddd(e.xmm1, e.xmm1, e.xmm0);
+
   e.vpand(e.xmm2, i.src1, e.GetXmmConstPtr(XMMAbsMaskPS));
   e.vmovdqa(e.xmm3, e.GetXmmConstPtr(XMMF16PackLCPI2));
 
@@ -2769,9 +2778,6 @@ struct PACK : Sequence<PACK, I<OPCODE_PACK, V128Op, V128Op, V128Op>> {
   static void EmitFLOAT16_4(X64Emitter& e, const EmitArgType& i) {
     if (!i.src1.is_constant) {
 #if XE_ARCH_AMD64
-      // TODO(has207): this code has an off-by-1 in rounding
-      // compared to the fallback which is accurate, but
-      // keeping it as default. Should be fixed.
       emit_fast_f16_pack(e, i, XMMPackFLOAT16_4);
 #else
       auto src1 = GetInputRegOrConstant(e, i.src1, e.xmm3);

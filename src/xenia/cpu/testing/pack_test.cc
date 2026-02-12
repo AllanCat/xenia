@@ -89,11 +89,15 @@ TEST_CASE("PACK_SHORT_2", "[instr]") {
     StoreVR(b, 3, b.Pack(LoadVR(b, 4), PACK_TYPE_SHORT_2));
     b.Return();
   });
-  test.Run([](PPCContext* ctx) { ctx->v[4] = vec128i(0); },
-           [](PPCContext* ctx) {
-             auto result = ctx->v[3];
-             REQUIRE(result == vec128i(0));
-           });
+  // SHORT_2 operates on pre-biased floats near 3.0 (0x40400000 = short 0)
+  test.Run(
+      [](PPCContext* ctx) {
+        ctx->v[4] = vec128i(0x40400000, 0x40400000, 0, 0);
+      },
+      [](PPCContext* ctx) {
+        auto result = ctx->v[3];
+        REQUIRE(result == vec128i(0));
+      });
   test.Run(
       [](PPCContext* ctx) {
         ctx->v[4] = vec128i(0x43817E00, 0xC37CFC00, 0, 0);
