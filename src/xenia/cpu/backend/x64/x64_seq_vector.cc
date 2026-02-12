@@ -1057,7 +1057,7 @@ struct VECTOR_SHL_V128
     if (i.src2.is_constant) {
       const auto& shamt = i.src2.constant();
       bool all_same = true;
-      for (size_t n = 0; n < 8 - n; ++n) {
+      for (size_t n = 0; n < 7; ++n) {
         if (shamt.u16[n] != shamt.u16[n + 1]) {
           all_same = false;
           break;
@@ -1135,7 +1135,7 @@ struct VECTOR_SHL_V128
     if (i.src2.is_constant) {
       const auto& shamt = i.src2.constant();
       bool all_same = true;
-      for (size_t n = 0; n < 4 - n; ++n) {
+      for (size_t n = 0; n < 3; ++n) {
         if (shamt.u32[n] != shamt.u32[n + 1]) {
           all_same = false;
           break;
@@ -1335,7 +1335,7 @@ struct VECTOR_SHR_V128
     if (i.src2.is_constant) {
       const auto& shamt = i.src2.constant();
       bool all_same = true;
-      for (size_t n = 0; n < 8 - n; ++n) {
+      for (size_t n = 0; n < 7; ++n) {
         if (shamt.u16[n] != shamt.u16[n + 1]) {
           all_same = false;
           break;
@@ -1418,7 +1418,7 @@ struct VECTOR_SHR_V128
     if (i.src2.is_constant) {
       const auto& shamt = i.src2.constant();
       bool all_same = true;
-      for (size_t n = 0; n < 4 - n; ++n) {
+      for (size_t n = 0; n < 3; ++n) {
         if (shamt.u32[n] != shamt.u32[n + 1]) {
           all_same = false;
           break;
@@ -1636,7 +1636,7 @@ struct VECTOR_SHA_V128
     if (i.src2.is_constant) {
       const auto& shamt = i.src2.constant();
       bool all_same = true;
-      for (size_t n = 0; n < 8 - n; ++n) {
+      for (size_t n = 0; n < 7; ++n) {
         if (shamt.u16[n] != shamt.u16[n + 1]) {
           all_same = false;
           break;
@@ -1711,7 +1711,7 @@ struct VECTOR_SHA_V128
     if (i.src2.is_constant) {
       const auto& shamt = i.src2.constant();
       bool all_same = true;
-      for (size_t n = 0; n < 4 - n; ++n) {
+      for (size_t n = 0; n < 3; ++n) {
         if (shamt.u32[n] != shamt.u32[n + 1]) {
           all_same = false;
           break;

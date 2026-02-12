@@ -80,6 +80,27 @@ TEST_CASE("VECTOR_SHA_I8_SAME_CONSTANT", "[instr]") {
       });
 }
 
+TEST_CASE("VECTOR_SHA_I16_CONSTANT_PARTIAL_SAME", "[instr]") {
+  TestFunction test([](HIRBuilder& b) {
+    StoreVR(b, 3,
+            b.VectorSha(LoadVR(b, 4),
+                        b.LoadConstantVec128(vec128s(1, 1, 1, 1, 5, 1, 5, 5)),
+                        INT16_TYPE));
+    b.Return();
+  });
+  test.Run(
+      [](PPCContext* ctx) {
+        ctx->v[4] = vec128s(0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000,
+                            0x8000, 0x8000);
+      },
+      [](PPCContext* ctx) {
+        auto result = ctx->v[3];
+        // h0-h3,h5: shift 1 → 0xC000; h4,h6,h7: shift 5 → 0xFC00
+        REQUIRE(result == vec128s(0xC000, 0xC000, 0xC000, 0xC000, 0xFC00,
+                                  0xC000, 0xFC00, 0xFC00));
+      });
+}
+
 TEST_CASE("VECTOR_SHA_I16", "[instr]") {
   TestFunction test([](HIRBuilder& b) {
     StoreVR(b, 3, b.VectorSha(LoadVR(b, 4), LoadVR(b, 5), INT16_TYPE));
@@ -116,6 +137,26 @@ TEST_CASE("VECTOR_SHA_I16_CONSTANT", "[instr]") {
         auto result = ctx->v[3];
         REQUIRE(result == vec128s(0x7FFE, 0x3FFF, 0x007F, 0x0000, 0xFFFF,
                                   0xFFFF, 0x0000, 0x1234));
+      });
+}
+
+TEST_CASE("VECTOR_SHA_I32_CONSTANT_PARTIAL_SAME", "[instr]") {
+  TestFunction test([](HIRBuilder& b) {
+    StoreVR(
+        b, 3,
+        b.VectorSha(LoadVR(b, 4), b.LoadConstantVec128(vec128i(1, 1, 1, 10)),
+                    INT32_TYPE));
+    b.Return();
+  });
+  test.Run(
+      [](PPCContext* ctx) {
+        ctx->v[4] = vec128i(0x80000000, 0x80000000, 0x80000000, 0x80000000);
+      },
+      [](PPCContext* ctx) {
+        auto result = ctx->v[3];
+        // d0-d2: shift 1 → 0xC0000000; d3: shift 10 → 0xFFE00000
+        REQUIRE(result ==
+                vec128i(0xC0000000, 0xC0000000, 0xC0000000, 0xFFE00000));
       });
 }
 
