@@ -101,13 +101,12 @@ struct VECTOR_CONVERT_F2I
     if (i.instr->flags & ARITHMETIC_UNSIGNED) {
       if (e.IsFeatureEnabled(kX64EmitAVX512Ortho)) {
         Opmask mask = e.k1;
-        // Mask positive values and unordered values
-        // _CMP_NLT_UQ
-        e.vcmpps(mask, i.src1, e.GetXmmConstPtr(XMMZero), 0x15);
+        // Mask non-negative, non-NaN values (ordered, >= 0)
+        // _CMP_GE_OQ
+        e.vcmpps(mask, i.src1, e.GetXmmConstPtr(XMMZero), 0x1D);
 
-        // vcvttps2udq will saturate overflowing positive values and unordered
-        // values to UINT_MAX. Mask registers will write zero everywhere
-        // else (negative values)
+        // vcvttps2udq will saturate overflowing positive values to UINT_MAX.
+        // Zero-masking writes zero for negative values and NaN
         e.vcvttps2udq(i.dest.reg() | mask | e.T_z, i.src1);
         return;
       }
