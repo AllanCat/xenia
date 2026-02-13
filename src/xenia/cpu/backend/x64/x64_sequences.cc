@@ -2879,9 +2879,10 @@ struct SHL_V128 : Sequence<SHL_V128, I<OPCODE_SHL, V128Op, V128Op, I8Op>> {
     // Linux/Mac System V ABI: __m128i passed in xmm0, return in xmm0
     e.vmovaps(e.xmm0, src1);
     if (i.src2.is_constant) {
-      e.mov(e.GetNativeParam(1), i.src2.constant());
+      e.mov(e.GetNativeParam(0), i.src2.constant());
     } else {
-      e.mov(e.GetNativeParam(1), i.src2);
+      // Zero-extend the 8-bit register to avoid garbage in upper bits
+      e.movzx(e.GetNativeParam(0).cvt32(), i.src2);
     }
 #endif
     e.CallNativeSafe(reinterpret_cast<void*>(EmulateShlV128));
