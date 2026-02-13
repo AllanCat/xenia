@@ -2856,10 +2856,9 @@ struct SHL_V128 : Sequence<SHL_V128, I<OPCODE_SHL, V128Op, V128Op, I8Op>> {
     auto src1 = GetInputRegOrConstant(e, i.src1, e.xmm3);
 
     if (i.src2.is_constant) {
-      e.mov(e.GetNativeParam(0), i.src2.constant());
+      e.mov(e.GetNativeParam(1), i.src2.constant());
     } else {
-      // Zero-extend the 8-bit register to avoid garbage in upper bits
-      e.movzx(e.GetNativeParam(0).cvt32(), i.src2);
+      e.mov(e.GetNativeParam(1), i.src2);
     }
     e.lea(e.GetNativeParam(0), e.StashXmm(0, src1));
     e.CallNativeSafe(reinterpret_cast<void*>(EmulateShlV128));
