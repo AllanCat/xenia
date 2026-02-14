@@ -473,26 +473,48 @@ def get_clang_format_binary():
     Returns:
       A path to the clang-format executable.
     """
-    clang_format_version_req = "19"
-    attempts = [
-        f"clang-format-{clang_format_version_req}",
-        "clang-format",
-        ]
+    clang_format_version_min = 19
+
+    # Build list of all potential clang-format binaries
+    all_binaries = []
+
+    # Check versioned binaries from 21 down to min, preferring newer
+    for version in range(21, clang_format_version_min - 1, -1):
+        binary = f"clang-format-{version}"
+        if has_bin(binary):
+            all_binaries.append(binary)
+
+    # Also check generic clang-format
+    all_binaries.append("clang-format")
+
+    # Add Windows-specific paths
     if sys.platform == "win32":
         if "VCINSTALLDIR" in os.environ:
-            attempts.append(os.path.join(os.environ["VCINSTALLDIR"], "Tools", "Llvm", "x64", "bin", "clang-format.exe"))
-            attempts.append(os.path.join(os.environ["VCINSTALLDIR"], "Tools", "Llvm", "arm64", "bin", "clang-format.exe"))
-        attempts.append(os.path.join(os.environ["ProgramFiles"], "LLVM", "bin", "clang-format.exe"))
-    for binary in attempts:
+            all_binaries.append(os.path.join(os.environ["VCINSTALLDIR"], "Tools", "Llvm", "x64", "bin", "clang-format.exe"))
+            all_binaries.append(os.path.join(os.environ["VCINSTALLDIR"], "Tools", "Llvm", "arm64", "bin", "clang-format.exe"))
+        all_binaries.append(os.path.join(os.environ["ProgramFiles"], "LLVM", "bin", "clang-format.exe"))
+
+    # Find the highest version available
+    best_binary = None
+    best_version = 0
+
+    for binary in all_binaries:
         if has_bin(binary):
             try:
                 clang_format_out = subprocess.check_output([binary, "--version"], text=True)
+                version = int(clang_format_out.split("version ")[1].split(".")[0])
+                if version >= clang_format_version_min and version > best_version:
+                    best_version = version
+                    best_binary = binary
+                    best_output = clang_format_out
             except:
                 continue
-            if int(clang_format_out.split("version ")[1].split(".")[0]) == int(clang_format_version_req):
-                print(clang_format_out)
-                return binary
-    print_error(f"clang-format {clang_format_version_req} is not on PATH")
+
+    if best_binary:
+        print(best_output)
+        return best_binary
+
+    print_error(f"clang-format {clang_format_version_min} or newer is not on PATH")
     sys.exit(1)
 
 
@@ -1674,12 +1696,17 @@ class FormatCommand(Command):
                 return 0
         else:
             print("- git-clang-format")
-            shell_call([
+            ret = shell_call([
                 sys.executable,
                 "third_party/clang-format/git-clang-format",
                 f"--binary={clang_format_binary}",
                 f"--commit={'origin/canary_experimental' if args['origin'] else 'HEAD'}",
-                ])
+                ], throw_on_error=False)
+            if ret != 0:
+                print("\nFiles were formatted. Please stage the changes:")
+                print("  git status")
+                print("  git add <files>")
+                return 1
             print("")
 
         return 0
