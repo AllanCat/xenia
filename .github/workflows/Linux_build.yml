@@ -53,7 +53,7 @@ jobs:
       - name: Setup
         id: setup
         env:
-          LLVM_VERSION: 19 # Same as Windows
+          LLVM_VERSION: 20
         run: |
           UBUNTU_BASE=$(lsb_release -cs)
           #echo "LLVM_VERSION=$LLVM_VERSION" >> "$GITHUB_OUTPUT"
