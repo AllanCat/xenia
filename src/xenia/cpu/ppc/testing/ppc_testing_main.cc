@@ -297,6 +297,20 @@ class TestRunner {
       return false;
     }
 
+#if XE_ARCH_AMD64
+    // Reset MXCSR and backend flags to default FPU state before each test.
+    // Without this, a previous test using VMX mode may leave FTZ/DAZ set,
+    // causing subsequent scalar FPU tests to incorrectly flush denormals.
+    _mm_setcsr(xe::cpu::backend::x64::DEFAULT_FPU_MXCSR);
+    {
+      auto* x64_backend = static_cast<xe::cpu::backend::x64::X64Backend*>(
+          processor_->backend());
+      auto* bctx =
+          x64_backend->BackendContextForGuestContext(thread_state_->context());
+      bctx->flags &= ~(1U << xe::cpu::backend::x64::kX64BackendMXCSRModeBit);
+    }
+#endif
+
     // Execute test.
     auto fn = processor_->ResolveFunction(test_case.address);
     if (!fn) {
@@ -663,8 +677,7 @@ bool RunTests(const std::string_view test_name) {
   TestRunner& runner = *runner_ptr;  // Never dereferenced on POSIX
 #endif
   for (auto& [suite, tcase] : all_tests) {
-    ProtectedRunTest(*suite, runner, *tcase, failed_count,
-                     passed_count);
+    ProtectedRunTest(*suite, runner, *tcase, failed_count, passed_count);
   }
 
   fprintf(stderr, "\n");
