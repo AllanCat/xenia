@@ -981,8 +981,9 @@ class BuildShadersCommand(Command):
         # well as to enable `#include` in GLSL, to include `xesl.xesli` itself,
         # without writing the same `#if` / `#extension` / `#endif` in every
         # shader). Also, not all shading languages provide a built-in
-        # preprocessor definition for identification of them, so XESL_LANGUAGE_*
-        # is also defined via the build arguments. XESL_LANGUAGE_* is set
+        # preprocessor definition for identification of them, so
+        # SHADING_LANGUAGE_*_XE is also defined via the build arguments.
+        # SHADING_LANGUAGE_*_XE is set
         # regardless of whether the file is XeSL or a raw source file in a
         # specific language, as XeSL headers may be used in language-specific
         # sources.
@@ -1026,7 +1027,7 @@ class BuildShadersCommand(Command):
                     # clutter in this case.
                     if subprocess.call([
                            fxc,
-                           "/D", "XESL_LANGUAGE_HLSL=1",
+                           "/D", "SHADING_LANGUAGE_HLSL_XE=1",
                            "/Fh", f"{dxbc_file_path_base}.h",
                            "/T", f"{dxbc_stage}_5_1",
                            "/Vn", dxbc_identifier,
@@ -1065,10 +1066,6 @@ class BuildShadersCommand(Command):
             spirv_opt = os.path.join(vulkan_bin_path, "spirv-opt")
             if not has_bin(spirv_opt):
                 print_error("could not find spirv-opt")
-                return 1
-            spirv_remap = os.path.join(vulkan_bin_path, "spirv-remap")
-            if not has_bin(spirv_remap):
-                print_error("could not find spirv-remap")
                 return 1
             spirv_dis = os.path.join(vulkan_bin_path, "spirv-dis")
             if not has_bin(spirv_dis):
@@ -1114,7 +1111,7 @@ class BuildShadersCommand(Command):
                 # --stdin must be before -S for some reason.
                 glslang_arguments = [glslang,
                                      "--stdin" if src_is_xesl else src_path,
-                                     "-DXESL_LANGUAGE_GLSL=1",
+                                     "-DSHADING_LANGUAGE_GLSL_XE=1",
                                      "-S", spirv_stage,
                                      "-o", spirv_glslang_file_path,
                                      "-V"]
@@ -1134,22 +1131,13 @@ class BuildShadersCommand(Command):
                 if subprocess.call([
                        spirv_opt,
                        "-O",
+                       "--canonicalize-ids",
                        spirv_glslang_file_path,
                        "-o", spirv_file_path,
                        ]) != 0:
                     print_error("failed to optimize a SPIR-V shader")
                     return 1
                 os.remove(spirv_glslang_file_path)
-                # spirv-remap takes the output directory, but it may be the same
-                # as the one the input is stored in.
-                if subprocess.call([
-                       spirv_remap,
-                       "--do-everything",
-                       "-i", spirv_file_path,
-                       "-o", spirv_dir_path,
-                       ]) != 0:
-                    print_error("failed to remap a SPIR-V shader")
-                    return 1
                 spirv_dis_file_path = f"{spirv_file_path_base}.txt"
                 if subprocess.call([
                        spirv_dis,

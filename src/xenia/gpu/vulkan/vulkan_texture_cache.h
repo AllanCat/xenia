@@ -180,7 +180,6 @@ class VulkanTextureCache final : public TextureCache {
   enum LoadDescriptorSetIndex {
     kLoadDescriptorSetIndexDestination,
     kLoadDescriptorSetIndexSource,
-    kLoadDescriptorSetIndexConstants,
     kLoadDescriptorSetCount,
   };
 

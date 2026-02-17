@@ -69,6 +69,9 @@ constexpr VkDescriptorPoolSize
 VulkanCommandProcessor::VulkanCommandProcessor(
     VulkanGraphicsSystem* graphics_system, kernel::KernelState* kernel_state)
     : CommandProcessor(graphics_system, kernel_state),
+      completion_timeline_(static_cast<const ui::vulkan::VulkanProvider*>(
+                               graphics_system->provider())
+                               ->vulkan_device()),
       deferred_command_buffer_(*this),
       transient_descriptor_allocator_uniform_buffer_(
           static_cast<const ui::vulkan::VulkanProvider*>(
@@ -229,11 +232,11 @@ bool VulkanCommandProcessor::SetupContext() {
         "constant buffers");
     return false;
   }
-  // Transient: uniform buffer for compute shaders.
+  // Transient: storage buffer for compute shaders.
   VkDescriptorSetLayoutBinding descriptor_set_layout_binding_transient;
   descriptor_set_layout_binding_transient.binding = 0;
   descriptor_set_layout_binding_transient.descriptorType =
-      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+      VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
   descriptor_set_layout_binding_transient.descriptorCount = 1;
   descriptor_set_layout_binding_transient.stageFlags =
       VK_SHADER_STAGE_COMPUTE_BIT;
@@ -241,21 +244,6 @@ bool VulkanCommandProcessor::SetupContext() {
   descriptor_set_layout_create_info.bindingCount = 1;
   descriptor_set_layout_create_info.pBindings =
       &descriptor_set_layout_binding_transient;
-  if (dfn.vkCreateDescriptorSetLayout(
-          device, &descriptor_set_layout_create_info, nullptr,
-          &descriptor_set_layouts_single_transient_[size_t(
-              SingleTransientDescriptorLayout::kUniformBufferCompute)]) !=
-      VK_SUCCESS) {
-    XELOGE(
-        "Failed to create a Vulkan descriptor set layout for a uniform buffer "
-        "bound to the compute shader");
-    return false;
-  }
-  // Transient: storage buffer for compute shaders.
-  descriptor_set_layout_binding_transient.descriptorType =
-      VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-  descriptor_set_layout_binding_transient.stageFlags =
-      VK_SHADER_STAGE_COMPUTE_BIT;
   if (dfn.vkCreateDescriptorSetLayout(
           device, &descriptor_set_layout_create_info, nullptr,
           &descriptor_set_layouts_single_transient_[size_t(
@@ -1187,26 +1175,17 @@ void VulkanCommandProcessor::ShutdownContext() {
     dfn.vkDestroySemaphore(device, semaphore.second, nullptr);
   }
   submissions_in_flight_semaphores_.clear();
-  for (VkFence& fence : submissions_in_flight_fences_) {
-    dfn.vkDestroyFence(device, fence, nullptr);
-  }
-  submissions_in_flight_fences_.clear();
   current_submission_wait_stage_masks_.clear();
   for (VkSemaphore semaphore : current_submission_wait_semaphores_) {
     dfn.vkDestroySemaphore(device, semaphore, nullptr);
   }
   current_submission_wait_semaphores_.clear();
-  submission_completed_ = 0;
   submission_open_ = false;
 
   for (VkSemaphore semaphore : semaphores_free_) {
     dfn.vkDestroySemaphore(device, semaphore, nullptr);
   }
   semaphores_free_.clear();
-  for (VkFence fence : fences_free_) {
-    dfn.vkDestroyFence(device, fence, nullptr);
-  }
-  fences_free_.clear();
 
   device_lost_ = false;
 
@@ -1465,7 +1444,8 @@ void VulkanCommandProcessor::IssueSwap(uint32_t frontbuffer_ptr,
           SwapFramebuffer& new_swap_framebuffer =
               swap_framebuffers_[swap_framebuffer_new_index];
           if (new_swap_framebuffer.framebuffer != VK_NULL_HANDLE) {
-            if (submission_completed_ >= new_swap_framebuffer.last_submission) {
+            if (GetCompletedSubmission() >=
+                new_swap_framebuffer.last_submission) {
               dfn.vkDestroyFramebuffer(device, new_swap_framebuffer.framebuffer,
                                        nullptr);
             } else {
@@ -2073,7 +2053,7 @@ VulkanCommandProcessor::AcquireScratchGpuBuffer(
     return ScratchBufferAcquisition();
   }
 
-  if (submission_completed_ >= scratch_buffer_last_usage_submission_) {
+  if (GetCompletedSubmission() >= scratch_buffer_last_usage_submission_) {
     const ui::vulkan::VulkanDevice::Functions& dfn = vulkan_device->functions();
     const VkDevice device = vulkan_device->device();
     if (scratch_buffer_ != VK_NULL_HANDLE) {
@@ -2388,7 +2368,7 @@ bool VulkanCommandProcessor::IssueDraw(xenos::PrimitiveType prim_type,
         texture_cache_->GetSubmissionToAwaitOnSamplerOverflow(
             samplers_overflowed_count);
     assert_true(sampler_overflow_await_submission <= GetCurrentSubmission());
-    CheckSubmissionFenceAndDeviceLoss(sampler_overflow_await_submission);
+    CheckSubmissionCompletionAndDeviceLoss(sampler_overflow_await_submission);
   }
 
   // Set up the render targets - this may perform dispatches and draws.
@@ -3038,7 +3018,7 @@ void VulkanCommandProcessor::InitializeTrace() {
   }
 }
 
-void VulkanCommandProcessor::CheckSubmissionFenceAndDeviceLoss(
+void VulkanCommandProcessor::CheckSubmissionCompletionAndDeviceLoss(
     uint64_t await_submission) {
   // Only report once, no need to retry a wait that won't succeed anyway.
   if (device_lost_) {
@@ -3054,69 +3034,23 @@ void VulkanCommandProcessor::CheckSubmissionFenceAndDeviceLoss(
     await_submission = GetCurrentSubmission() - 1;
   }
 
-  const ui::vulkan::VulkanDevice* const vulkan_device = GetVulkanDevice();
-  const ui::vulkan::VulkanDevice::Functions& dfn = vulkan_device->functions();
-  const VkDevice device = vulkan_device->device();
+  completion_timeline_.AwaitSubmissionAndUpdateCompleted(await_submission);
 
-  size_t fences_total = submissions_in_flight_fences_.size();
-  size_t fences_awaited = 0;
-  if (await_submission > submission_completed_) {
-    // Await in a blocking way if requested.
-    // TODO(Triang3l): Await only one fence. "Fence signal operations that are
-    // defined by vkQueueSubmit additionally include in the first
-    // synchronization scope all commands that occur earlier in submission
-    // order."
-    VkResult wait_result = dfn.vkWaitForFences(
-        device, uint32_t(await_submission - submission_completed_),
-        submissions_in_flight_fences_.data(), VK_TRUE, UINT64_MAX);
-    if (wait_result == VK_SUCCESS) {
-      fences_awaited += await_submission - submission_completed_;
-    } else {
-      XELOGE("Failed to await submission completion Vulkan fences");
-      if (wait_result == VK_ERROR_DEVICE_LOST) {
-        device_lost_ = true;
-      }
-    }
-  }
-  // Check how far into the submissions the GPU currently is, in order because
-  // submission themselves can be executed out of order, but Xenia serializes
-  // that for simplicity.
-  while (fences_awaited < fences_total) {
-    VkResult fence_status = dfn.vkWaitForFences(
-        device, 1, &submissions_in_flight_fences_[fences_awaited], VK_TRUE, 0);
-    if (fence_status != VK_SUCCESS) {
-      if (fence_status == VK_ERROR_DEVICE_LOST) {
-        device_lost_ = true;
-      }
-      break;
-    }
-    ++fences_awaited;
-  }
-  if (device_lost_) {
+  const ui::vulkan::VulkanDevice* const vulkan_device = GetVulkanDevice();
+
+  if (vulkan_device->IsLost()) {
+    device_lost_ = true;
     graphics_system_->OnHostGpuLossFromAnyThread(true);
     return;
   }
-  if (!fences_awaited) {
-    // Not updated - no need to reclaim or download things.
-    return;
-  }
-  // Reclaim fences.
-  fences_free_.reserve(fences_free_.size() + fences_awaited);
-  auto submissions_in_flight_fences_awaited_end =
-      submissions_in_flight_fences_.cbegin();
-  std::advance(submissions_in_flight_fences_awaited_end, fences_awaited);
-  fences_free_.insert(fences_free_.cend(),
-                      submissions_in_flight_fences_.cbegin(),
-                      submissions_in_flight_fences_awaited_end);
-  submissions_in_flight_fences_.erase(submissions_in_flight_fences_.cbegin(),
-                                      submissions_in_flight_fences_awaited_end);
-  submission_completed_ += fences_awaited;
+
+  const uint64_t completed_submission = GetCompletedSubmission();
 
   // Reclaim semaphores.
   while (!submissions_in_flight_semaphores_.empty()) {
     const auto& semaphore_submission =
         submissions_in_flight_semaphores_.front();
-    if (semaphore_submission.first > submission_completed_) {
+    if (semaphore_submission.first > completed_submission) {
       break;
     }
     semaphores_free_.push_back(semaphore_submission.second);
@@ -3126,7 +3060,7 @@ void VulkanCommandProcessor::CheckSubmissionFenceAndDeviceLoss(
   // Reclaim command pools.
   while (!command_buffers_submitted_.empty()) {
     const auto& command_buffer_pair = command_buffers_submitted_.front();
-    if (command_buffer_pair.first > submission_completed_) {
+    if (command_buffer_pair.first > completed_submission) {
       break;
     }
     command_buffers_writable_.push_back(command_buffer_pair.second);
@@ -3139,12 +3073,14 @@ void VulkanCommandProcessor::CheckSubmissionFenceAndDeviceLoss(
 
   render_target_cache_->CompletedSubmissionUpdated();
 
-  texture_cache_->CompletedSubmissionUpdated(submission_completed_);
+  texture_cache_->CompletedSubmissionUpdated(completed_submission);
 
   // Destroy objects scheduled for destruction.
+  const ui::vulkan::VulkanDevice::Functions& dfn = vulkan_device->functions();
+  const VkDevice device = vulkan_device->device();
   while (!destroy_framebuffers_.empty()) {
     const auto& destroy_pair = destroy_framebuffers_.front();
-    if (destroy_pair.first > submission_completed_) {
+    if (destroy_pair.first > completed_submission) {
       break;
     }
     dfn.vkDestroyFramebuffer(device, destroy_pair.second, nullptr);
@@ -3152,7 +3088,7 @@ void VulkanCommandProcessor::CheckSubmissionFenceAndDeviceLoss(
   }
   while (!destroy_buffers_.empty()) {
     const auto& destroy_pair = destroy_buffers_.front();
-    if (destroy_pair.first > submission_completed_) {
+    if (destroy_pair.first > completed_submission) {
       break;
     }
     dfn.vkDestroyBuffer(device, destroy_pair.second, nullptr);
@@ -3160,7 +3096,7 @@ void VulkanCommandProcessor::CheckSubmissionFenceAndDeviceLoss(
   }
   while (!destroy_memory_.empty()) {
     const auto& destroy_pair = destroy_memory_.front();
-    if (destroy_pair.first > submission_completed_) {
+    if (destroy_pair.first > completed_submission) {
       break;
     }
     dfn.vkFreeMemory(device, destroy_pair.second, nullptr);
@@ -3190,8 +3126,9 @@ bool VulkanCommandProcessor::BeginSubmission(bool is_guest_command) {
       is_opening_frame
           ? closed_frame_submissions_[frame_current_ % kMaxFramesInFlight]
           : 0;
-  CheckSubmissionFenceAndDeviceLoss(await_submission);
-  if (device_lost_ || submission_completed_ < await_submission) {
+  CheckSubmissionCompletionAndDeviceLoss(await_submission);
+  const uint64_t completed_submission = GetCompletedSubmission();
+  if (device_lost_ || completed_submission < await_submission) {
     return false;
   }
 
@@ -3204,7 +3141,7 @@ bool VulkanCommandProcessor::BeginSubmission(bool is_guest_command) {
     for (uint64_t frame = frame_completed_ + 1; frame < frame_current_;
          ++frame) {
       if (closed_frame_submissions_[frame % kMaxFramesInFlight] >
-          submission_completed_) {
+          completed_submission) {
         break;
       }
       frame_completed_ = frame;
@@ -3352,27 +3289,12 @@ bool VulkanCommandProcessor::BeginSubmission(bool is_guest_command) {
 }
 
 bool VulkanCommandProcessor::EndSubmission(bool is_swap) {
-  const ui::vulkan::VulkanDevice* const vulkan_device = GetVulkanDevice();
+  ui::vulkan::VulkanDevice* const vulkan_device = GetVulkanDevice();
   const ui::vulkan::VulkanDevice::Functions& dfn = vulkan_device->functions();
   const VkDevice device = vulkan_device->device();
 
   // Make sure everything needed for submitting exist.
   if (submission_open_) {
-    if (fences_free_.empty()) {
-      VkFenceCreateInfo fence_create_info;
-      fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-      fence_create_info.pNext = nullptr;
-      fence_create_info.flags = 0;
-      VkFence fence;
-      if (dfn.vkCreateFence(device, &fence_create_info, nullptr, &fence) !=
-          VK_SUCCESS) {
-        XELOGE("Failed to create a Vulkan fence");
-        // Try to submit later. Completely dropping the submission is not
-        // permitted because resources would be left in an undefined state.
-        return false;
-      }
-      fences_free_.push_back(fence);
-    }
     if (!sparse_memory_binds_.empty() && semaphores_free_.empty()) {
       VkSemaphoreCreateInfo semaphore_create_info;
       semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -3515,58 +3437,37 @@ bool VulkanCommandProcessor::EndSubmission(bool is_swap) {
       return false;
     }
 
-    VkSubmitInfo submit_info;
-    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submit_info.pNext = nullptr;
+    const uint64_t submission_index = GetCurrentSubmission();
+
+    VkSubmitInfo submit_info = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
     if (!current_submission_wait_semaphores_.empty()) {
       submit_info.waitSemaphoreCount =
           uint32_t(current_submission_wait_semaphores_.size());
       submit_info.pWaitSemaphores = current_submission_wait_semaphores_.data();
       submit_info.pWaitDstStageMask =
           current_submission_wait_stage_masks_.data();
-    } else {
-      submit_info.waitSemaphoreCount = 0;
-      submit_info.pWaitSemaphores = nullptr;
-      submit_info.pWaitDstStageMask = nullptr;
     }
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &command_buffer.buffer;
-    submit_info.signalSemaphoreCount = 0;
-    submit_info.pSignalSemaphores = nullptr;
-    assert_false(fences_free_.empty());
-    VkFence fence = fences_free_.back();
-    if (dfn.vkResetFences(device, 1, &fence) != VK_SUCCESS) {
-      XELOGE("Failed to reset a Vulkan submission fence");
-      return false;
-    }
-    VkResult submit_result;
-    {
-      ui::vulkan::VulkanDevice::Queue::Acquisition queue_acquisition =
-          vulkan_device->AcquireQueue(
-              vulkan_device->queue_family_graphics_compute(), 0);
-      submit_result =
-          dfn.vkQueueSubmit(queue_acquisition.queue(), 1, &submit_info, fence);
-    }
+    const VkResult submit_result = completion_timeline_.AcquireFenceAndSubmit(
+        vulkan_device->queue_family_graphics_compute(), 0, 1, &submit_info);
     if (submit_result != VK_SUCCESS) {
-      XELOGE("Failed to submit a Vulkan command buffer");
-      if (submit_result == VK_ERROR_DEVICE_LOST && !device_lost_) {
+      XELOGE("Failed to submit a GPU emulation Vulkan command buffer: {}",
+             vk::to_string(vk::Result(submit_result)));
+      if (vulkan_device->IsLost() && !device_lost_) {
         device_lost_ = true;
         graphics_system_->OnHostGpuLossFromAnyThread(true);
       }
       return false;
     }
-    uint64_t submission_current = GetCurrentSubmission();
     current_submission_wait_stage_masks_.clear();
     for (VkSemaphore semaphore : current_submission_wait_semaphores_) {
-      submissions_in_flight_semaphores_.emplace_back(submission_current,
+      submissions_in_flight_semaphores_.emplace_back(submission_index,
                                                      semaphore);
     }
     current_submission_wait_semaphores_.clear();
-    command_buffers_submitted_.emplace_back(submission_current, command_buffer);
+    command_buffers_submitted_.emplace_back(submission_index, command_buffer);
     command_buffers_writable_.pop_back();
-    // Increments the current submission number, going to the next submission.
-    submissions_in_flight_fences_.push_back(fence);
-    fences_free_.pop_back();
 
     submission_open_ = false;
   }
@@ -4793,56 +4694,6 @@ bool VulkanCommandProcessor::UpdateBindings(const VulkanShader* vertex_shader,
   current_graphics_descriptor_sets_bound_up_to_date_ |= descriptor_sets_needed;
 
   return true;
-}
-
-uint8_t* VulkanCommandProcessor::WriteTransientUniformBufferBinding(
-    size_t size, SingleTransientDescriptorLayout transient_descriptor_layout,
-    VkDescriptorBufferInfo& descriptor_buffer_info_out,
-    VkWriteDescriptorSet& write_descriptor_set_out) {
-  assert_true(frame_open_);
-  VkDescriptorSet descriptor_set =
-      AllocateSingleTransientDescriptor(transient_descriptor_layout);
-  if (descriptor_set == VK_NULL_HANDLE) {
-    return nullptr;
-  }
-  uint8_t* mapping = uniform_buffer_pool_->Request(
-      frame_current_, size,
-      size_t(GetVulkanDevice()->properties().minUniformBufferOffsetAlignment),
-      descriptor_buffer_info_out.buffer, descriptor_buffer_info_out.offset);
-  if (!mapping) {
-    return nullptr;
-  }
-  descriptor_buffer_info_out.range = VkDeviceSize(size);
-  write_descriptor_set_out.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  write_descriptor_set_out.pNext = nullptr;
-  write_descriptor_set_out.dstSet = descriptor_set;
-  write_descriptor_set_out.dstBinding = 0;
-  write_descriptor_set_out.dstArrayElement = 0;
-  write_descriptor_set_out.descriptorCount = 1;
-  write_descriptor_set_out.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  write_descriptor_set_out.pImageInfo = nullptr;
-  write_descriptor_set_out.pBufferInfo = &descriptor_buffer_info_out;
-  write_descriptor_set_out.pTexelBufferView = nullptr;
-  return mapping;
-}
-
-uint8_t* VulkanCommandProcessor::WriteTransientUniformBufferBinding(
-    size_t size, SingleTransientDescriptorLayout transient_descriptor_layout,
-    VkDescriptorSet& descriptor_set_out) {
-  VkDescriptorBufferInfo write_descriptor_buffer_info;
-  VkWriteDescriptorSet write_descriptor_set;
-  uint8_t* mapping = WriteTransientUniformBufferBinding(
-      size, transient_descriptor_layout, write_descriptor_buffer_info,
-      write_descriptor_set);
-  if (!mapping) {
-    return nullptr;
-  }
-  const ui::vulkan::VulkanDevice* const vulkan_device = GetVulkanDevice();
-  const ui::vulkan::VulkanDevice::Functions& dfn = vulkan_device->functions();
-  const VkDevice device = vulkan_device->device();
-  dfn.vkUpdateDescriptorSets(device, 1, &write_descriptor_set, 0, nullptr);
-  descriptor_set_out = write_descriptor_set.dstSet;
-  return mapping;
 }
 
 uint32_t VulkanCommandProcessor::WriteTransientTextureBindings(

@@ -198,8 +198,7 @@ bool QueryProtect(void* base_address, size_t& length, PageAccess& access_out) {
       0 /* MemoryBasicInformation*/, &info, length, &ResultLength);
   SIZE_T result = query_result >= 0 ? ResultLength : 0;
 #else
-  SIZE_T result = VirtualQuery(base_address, &info, length);
-
+  SIZE_T result = VirtualQuery(base_address, &info, sizeof(info));
 #endif
   if (!result) {
     return false;

@@ -38,6 +38,7 @@
 #include "xenia/gpu/xenos.h"
 #include "xenia/kernel/kernel_state.h"
 #include "xenia/ui/vulkan/linked_type_descriptor_set_allocator.h"
+#include "xenia/ui/vulkan/vulkan_gpu_completion_timeline.h"
 #include "xenia/ui/vulkan/vulkan_presenter.h"
 #include "xenia/ui/vulkan/vulkan_provider.h"
 #include "xenia/ui/vulkan/vulkan_upload_buffer_pool.h"
@@ -54,7 +55,6 @@ class VulkanCommandProcessor final : public CommandProcessor {
  public:
   // Single-descriptor layouts for use within a single frame.
   enum class SingleTransientDescriptorLayout {
-    kUniformBufferCompute,
     kStorageBufferCompute,
     kCount,
   };
@@ -162,10 +162,11 @@ class VulkanCommandProcessor final : public CommandProcessor {
 
   bool submission_open() const { return submission_open_; }
   uint64_t GetCurrentSubmission() const {
-    return submission_completed_ +
-           uint64_t(submissions_in_flight_fences_.size()) + 1;
+    return completion_timeline_.GetUpcomingSubmission();
   }
-  uint64_t GetCompletedSubmission() const { return submission_completed_; }
+  uint64_t GetCompletedSubmission() const {
+    return completion_timeline_.GetCompletedSubmissionFromLastUpdate();
+  }
 
   // Sparse binds are:
   // - In a single submission, all submitted in one vkQueueBindSparse.
@@ -221,16 +222,6 @@ class VulkanCommandProcessor final : public CommandProcessor {
   // A frame must be open.
   VkDescriptorSet AllocateSingleTransientDescriptor(
       SingleTransientDescriptorLayout transient_descriptor_layout);
-  // Allocates a descriptor, space in the uniform buffer pool, and fills the
-  // VkWriteDescriptorSet structure and VkDescriptorBufferInfo referenced by it.
-  // Returns null in case of failure.
-  uint8_t* WriteTransientUniformBufferBinding(
-      size_t size, SingleTransientDescriptorLayout transient_descriptor_layout,
-      VkDescriptorBufferInfo& descriptor_buffer_info_out,
-      VkWriteDescriptorSet& write_descriptor_set_out);
-  uint8_t* WriteTransientUniformBufferBinding(
-      size_t size, SingleTransientDescriptorLayout transient_descriptor_layout,
-      VkDescriptorSet& descriptor_set_out);
 
   // The returned reference is valid until a cache clear.
   VkDescriptorSetLayout GetTextureDescriptorSetLayout(bool is_vertex,
@@ -421,7 +412,7 @@ class VulkanCommandProcessor final : public CommandProcessor {
   // Rechecks submission number and reclaims per-submission resources. Pass 0 as
   // the submission to await to simply check status, or pass
   // GetCurrentSubmission() to wait for all queue operations to be completed.
-  void CheckSubmissionFenceAndDeviceLoss(uint64_t await_submission);
+  void CheckSubmissionCompletionAndDeviceLoss(uint64_t await_submission);
   // If is_guest_command is true, a new full frame - with full cleanup of
   // resources and, if needed, starting capturing - is opened if pending (as
   // opposed to simply resuming after mid-frame synchronization). Returns
@@ -432,8 +423,9 @@ class VulkanCommandProcessor final : public CommandProcessor {
   // successfully, if it has failed, leaves it open.
   bool EndSubmission(bool is_swap);
   bool AwaitAllQueueOperationsCompletion() {
-    CheckSubmissionFenceAndDeviceLoss(GetCurrentSubmission());
-    return !submission_open_ && submissions_in_flight_fences_.empty();
+    CheckSubmissionCompletionAndDeviceLoss(GetCurrentSubmission());
+    return !submission_open_ &&
+           GetCompletedSubmission() + 1u >= GetCurrentSubmission();
   }
 
   // Requests a readback buffer for CPU access to GPU data.
@@ -483,16 +475,14 @@ class VulkanCommandProcessor final : public CommandProcessor {
   VkPipelineStageFlags guest_shader_pipeline_stages_ = 0;
   VkShaderStageFlags guest_shader_vertex_stages_ = 0;
 
-  std::vector<VkFence> fences_free_;
   std::vector<VkSemaphore> semaphores_free_;
 
+  ui::vulkan::VulkanGPUCompletionTimeline completion_timeline_;
   bool submission_open_ = false;
-  uint64_t submission_completed_ = 0;
   // In case vkQueueSubmit fails after something like a successful
   // vkQueueBindSparse, to wait correctly on the next attempt.
   std::vector<VkSemaphore> current_submission_wait_semaphores_;
   std::vector<VkPipelineStageFlags> current_submission_wait_stage_masks_;
-  std::vector<VkFence> submissions_in_flight_fences_;
   std::deque<std::pair<uint64_t, VkSemaphore>>
       submissions_in_flight_semaphores_;
 

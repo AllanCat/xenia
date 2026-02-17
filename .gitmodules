@@ -108,3 +108,6 @@
 [submodule "third_party/cpplint"]
 	path = third_party/cpplint
 	url = https://github.com/cpplint/cpplint.git
+[submodule "third_party/DirectX-Headers"]
+	path = third_party/DirectX-Headers
+	url = https://github.com/microsoft/DirectX-Headers.git
