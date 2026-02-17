@@ -153,9 +153,65 @@ vs_version = import_vs_environment()
 
 default_branch = "canary_experimental"
 
+def setup_vulkan_sdk():
+    """Setup Vulkan SDK environment variables if not already set.
+
+    Returns:
+        True if Vulkan SDK is available and valid, False otherwise.
+    """
+    # Check if VULKAN_SDK is already set and valid
+    existing_vulkan_sdk = os.environ.get("VULKAN_SDK")
+    if existing_vulkan_sdk:
+        if os.path.exists(existing_vulkan_sdk):
+            if has_bin("spirv-opt"):
+                print(f"VULKAN_SDK is set to {existing_vulkan_sdk}")
+                return True
+            print_warning(f"VULKAN_SDK is set to {existing_vulkan_sdk} but spirv-opt not found in PATH")
+        else:
+            print_warning(f"VULKAN_SDK is set to {existing_vulkan_sdk} but directory does not exist")
+        return False
+
+    if sys.platform != "win32":
+        # On Linux, find spirv-opt in PATH and set VULKAN_SDK based on its location
+        spirv_opt_path = get_bin("spirv-opt")
+        if spirv_opt_path:
+            # spirv-opt is typically in $VULKAN_SDK/bin/, so get parent directory
+            spirv_bin_dir = os.path.dirname(spirv_opt_path)
+            vulkan_sdk = os.path.dirname(spirv_bin_dir)
+            os.environ["VULKAN_SDK"] = vulkan_sdk
+            print(f"Found Vulkan SDK at {vulkan_sdk} (from spirv-opt location)")
+            return True
+        return False
+
+    # Windows: Check if Vulkan SDK is installed at the default location
+    vulkan_base = "C:\\VulkanSDK"
+    if not os.path.exists(vulkan_base):
+        return False
+
+    try:
+        subdirs = [d for d in os.listdir(vulkan_base)
+                   if os.path.isdir(os.path.join(vulkan_base, d))]
+        if not subdirs:
+            return False
+
+        vulkan_sdk = os.path.join(vulkan_base, subdirs[0])
+        vulkan_bin = os.path.join(vulkan_sdk, "Bin")
+
+        os.environ["VULKAN_SDK"] = vulkan_sdk
+        os.environ["PATH"] = f"{vulkan_bin}{os.pathsep}{os.environ['PATH']}"
+
+        print(f"Found Vulkan SDK at {vulkan_sdk}")
+        return True
+    except Exception:
+        return False
+
+
 def main():
     # Add self to the root search path.
     sys.path.insert(0, self_path)
+
+    # Setup Vulkan SDK and check if available
+    setup_vulkan_sdk()
 
     # Augment path to include our fancy things.
     os.environ["PATH"] += os.pathsep + os.pathsep.join([
