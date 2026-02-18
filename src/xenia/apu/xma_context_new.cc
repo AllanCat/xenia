@@ -131,14 +131,6 @@ bool XmaContextNew::Work() {
 
   if (data.IsConsumeOnlyContext()) {
     Consume(&output_rb, &data);
-    // Clearing contexts that match TightBufferOutput heuristic can disrupt
-    // playback (e.g. audio noise during races in PGR4), so we only clear
-    // contexts with enough output buffer headroom where empty input reliably
-    // indicates the stream is finished (e.g. needed for dialog completion in
-    // Borderlands 2 startup).
-    // NOTE(has207): this feels wrong to have such a heuristic but it seems to
-    // work for the known cases. May need to be revisited if failing cases are
-    // found.
     if (!data.HasTightOutputBuffer() &&
         data.output_buffer_read_offset == data.output_buffer_write_offset) {
       ClearLocked(&data);
@@ -148,7 +140,8 @@ bool XmaContextNew::Work() {
   }
 
   const int32_t minimum_subframe_decode_count =
-      (kBytesPerFrameChannel / kOutputBytesPerBlock) << data.is_stereo;
+      ((kBytesPerFrameChannel / kOutputBytesPerBlock) << data.is_stereo) +
+      data.output_buffer_padding;
 
   // We don't have enough space to even make one pass
   // Waiting for decoder to return more space.
@@ -165,12 +158,12 @@ bool XmaContextNew::Work() {
          minimum_subframe_decode_count) {
     XELOGAPU(
         "XmaContext {}: Write Count: {}, Capacity: {} - {} {} Subframes: {} "
-        "Skip: {}",
+        "Padding: {}",
         id(), (uint32_t)output_rb.write_count(),
         remaining_subframe_blocks_in_output_buffer_,
         data.input_buffer_0_valid + (data.input_buffer_1_valid << 1),
         data.output_buffer_valid, data.subframe_decode_count,
-        data.subframe_skip_count);
+        data.output_buffer_padding);
 
     Decode(&data);
     Consume(&output_rb, &data);
@@ -273,12 +266,19 @@ void XmaContextNew::Consume(RingBuffer* XE_RESTRICT output_rb,
   const int8_t raw_frame_read_offset =
       ((kBytesPerFrameChannel / kOutputBytesPerBlock) << data->is_stereo) -
       current_frame_remaining_subframes_;
-  // + data->subframe_skip_count;
 
   output_rb->Write(
       raw_frame_.data() + (kOutputBytesPerBlock * raw_frame_read_offset),
       subframes_to_write * kOutputBytesPerBlock);
-  remaining_subframe_blocks_in_output_buffer_ -= subframes_to_write;
+
+  // Reserve extra blocks as headroom when unk_skip_decode is set.
+  // Only apply when the frame is fully consumed to avoid double-counting.
+  const int8_t headroom =
+      (current_frame_remaining_subframes_ - subframes_to_write == 0)
+          ? data->output_buffer_padding
+          : 0;
+
+  remaining_subframe_blocks_in_output_buffer_ -= subframes_to_write + headroom;
   current_frame_remaining_subframes_ -= subframes_to_write;
 
   XELOGAPU("XmaContext {}: Consume: {} - {} - {} - {} - {}", id(),
