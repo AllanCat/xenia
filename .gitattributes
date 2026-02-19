@@ -9,3 +9,4 @@
 *.props     text eol=crlf -whitespace merge=union
 
 src/**/shaders/bytecode/** linguist-generated=true
+src/**/testing/** linguist-detectable=false
