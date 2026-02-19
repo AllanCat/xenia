@@ -407,15 +407,30 @@ DECLARE_XAM_EXPORT1(XamUserWriteProfileSettings, kUserProfiles, kImplemented);
 
 dword_result_t XamUserCheckPrivilege_entry(dword_t user_index, dword_t mask,
                                            lpdword_t out_value) {
-  // checking all users?
-  if (user_index != XUserIndexAny) {
-    if (user_index >= XUserMaxUserCount) {
-      return X_ERROR_INVALID_PARAMETER;
+  if (user_index == XUserIndexAny) {
+    for (uint8_t i = 0; i < XUserMaxUserCount; ++i) {
+      const auto result = XamUserCheckPrivilege_entry(i, mask, out_value);
+      if (result != X_ERROR_NO_SUCH_USER) {
+        *out_value = 0;
+        return result;
+      }
     }
+    *out_value = 0;
+    return X_ERROR_NO_SUCH_USER;
+  }
 
-    if (!kernel_state()->xam_state()->IsUserSignedIn(user_index)) {
-      return X_ERROR_NO_SUCH_USER;
-    }
+  if (user_index >= XUserMaxUserCount) {
+    return X_ERROR_INVALID_PARAMETER;
+  }
+
+  if (!kernel_state()->xam_state()->IsUserSignedIn(user_index)) {
+    return X_ERROR_NO_SUCH_USER;
+  }
+
+  if (kernel_state()->xam_state()->GetUserProfile(user_index)->signin_state() !=
+      static_cast<uint32_t>(SignInState::SignedInToLive)) {
+    *out_value = 0;
+    return X_ERROR_NOT_LOGGED_ON;
   }
 
   // If we deny everything, games should hopefully not try to do stuff.
