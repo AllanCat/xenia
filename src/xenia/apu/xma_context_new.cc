@@ -587,26 +587,24 @@ const uint8_t* XmaContextNew::GetNextPacket(
 const uint32_t XmaContextNew::GetNextPacketReadOffset(
     uint8_t* buffer, uint32_t next_packet_index,
     uint32_t current_input_packet_count) {
-  if (next_packet_index >= current_input_packet_count) {
-    return kBitsPerPacketHeader;
+  // Scan forward for the next packet that contains a new frame.
+  while (next_packet_index < current_input_packet_count) {
+    uint8_t* next_packet = buffer + (next_packet_index * kBytesPerPacket);
+    const uint32_t packet_frame_offset = xma::GetPacketFrameOffset(next_packet);
+
+    if (packet_frame_offset <= kMaxFrameSizeinBits) {
+      const uint32_t new_input_buffer_offset =
+          (next_packet_index * kBitsPerPacket) + packet_frame_offset;
+
+      XELOGAPU("XmaContext {}: new offset: {} packet_offset: {} packet: {}/{}",
+               id(), new_input_buffer_offset, packet_frame_offset,
+               next_packet_index, current_input_packet_count);
+      return new_input_buffer_offset;
+    }
+    next_packet_index++;
   }
 
-  uint8_t* next_packet = buffer + (next_packet_index * kBytesPerPacket);
-  const uint32_t packet_frame_offset = xma::GetPacketFrameOffset(next_packet);
-
-  if (packet_frame_offset > kMaxFrameSizeinBits) {
-    const uint32_t offset = GetNextPacketReadOffset(
-        buffer, next_packet_index + 1, current_input_packet_count);
-    return offset;
-  }
-
-  const uint32_t new_input_buffer_offset =
-      (next_packet_index * kBitsPerPacket) + packet_frame_offset;
-
-  XELOGAPU("XmaContext {}: new offset: {} packet_offset: {} packet: {}/{}",
-           id(), new_input_buffer_offset, packet_frame_offset,
-           next_packet_index, current_input_packet_count);
-  return new_input_buffer_offset;
+  return kBitsPerPacketHeader;
 }
 
 const uint32_t XmaContextNew::GetAmountOfBitsToRead(
