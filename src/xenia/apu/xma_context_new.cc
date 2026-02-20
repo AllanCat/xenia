@@ -229,6 +229,8 @@ void XmaContextNew::ClearLocked(XMA_CONTEXT_DATA* data) {
   data->output_buffer_write_offset = 0;
 
   current_frame_remaining_subframes_ = 0;
+  loop_frame_output_limit_ = 0;
+  loop_start_skip_pending_ = false;
 }
 
 void XmaContextNew::Disable() { set_is_enabled(false); }
@@ -266,9 +268,45 @@ void XmaContextNew::Consume(RingBuffer* XE_RESTRICT output_rb,
     return;
   }
 
-  const int8_t subframes_to_write =
+  // Check if the loop end truncation limit has been reached.
+  // Total subframes for this frame minus remaining gives how many have already
+  // been consumed.  If that reaches the limit, discard the rest.
+  if (loop_frame_output_limit_ > 0) {
+    const uint8_t total_subframes =
+        (kBytesPerFrameChannel / kOutputBytesPerBlock) << data->is_stereo;
+    const uint8_t consumed =
+        total_subframes - current_frame_remaining_subframes_;
+    if (consumed >= loop_frame_output_limit_) {
+      // Charge headroom as if the frame completed normally so the Work()
+      // loop doesn't overestimate available output space.
+      XELOGAPU(
+          "XmaContext {}: Loop end truncation: discarding {} remaining "
+          "subframes (limit {})",
+          id(), current_frame_remaining_subframes_, loop_frame_output_limit_);
+      remaining_subframe_blocks_in_output_buffer_ -=
+          data->output_buffer_padding;
+      current_frame_remaining_subframes_ = 0;
+      loop_frame_output_limit_ = 0;
+      return;
+    }
+  }
+
+  int8_t subframes_to_write =
       std::min((int8_t)current_frame_remaining_subframes_,
                (int8_t)data->subframe_decode_count);
+
+  // Clamp to loop end limit if active.
+  if (loop_frame_output_limit_ > 0) {
+    const uint8_t total_subframes =
+        (kBytesPerFrameChannel / kOutputBytesPerBlock) << data->is_stereo;
+    const uint8_t consumed =
+        total_subframes - current_frame_remaining_subframes_;
+    const int8_t remaining_until_limit =
+        (int8_t)(loop_frame_output_limit_ - consumed);
+    if (subframes_to_write > remaining_until_limit) {
+      subframes_to_write = remaining_until_limit;
+    }
+  }
 
   const int8_t raw_frame_read_offset =
       ((kBytesPerFrameChannel / kOutputBytesPerBlock) << data->is_stereo) -
@@ -322,6 +360,14 @@ void XmaContextNew::Decode(XMA_CONTEXT_DATA* data) {
   uint8_t* current_input_buffer = GetCurrentInputBuffer(data);
 
   input_buffer_.fill(0);
+
+  // Detect if we're about to decode the loop end frame (before
+  // UpdateLoopStatus may reset the offset).
+  bool is_loop_end_frame = false;
+  if (data->loop_count > 0) {
+    const uint32_t loop_end = std::max(kBitsPerPacketHeader, data->loop_end);
+    is_loop_end_frame = (data->input_buffer_read_offset == loop_end);
+  }
 
   UpdateLoopStatus(data);
 
@@ -500,8 +546,33 @@ void XmaContextNew::Decode(XMA_CONTEXT_DATA* data) {
     // dump_raw(av_frame_, id());
     ConvertFrame(reinterpret_cast<const uint8_t**>(&av_frame_->data),
                  bool(data->is_stereo), raw_frame_.data());
-    // TODO: Be aware of subframe_skips & loops subframes skips
     current_frame_remaining_subframes_ = 4 << data->is_stereo;
+
+    // Loop end: limit output to subframes 0..loop_subframe_end.
+    if (is_loop_end_frame) {
+      loop_frame_output_limit_ = (data->loop_subframe_end + 1)
+                                 << data->is_stereo;
+      XELOGAPU(
+          "XmaContext {}: Loop end frame - limiting output to {} subframes "
+          "(loop_subframe_end={})",
+          id(), loop_frame_output_limit_, data->loop_subframe_end);
+    } else {
+      loop_frame_output_limit_ = 0;
+    }
+
+    // Loop start: skip leading subframes per loop_subframe_skip.
+    // Reducing remaining shifts the read offset forward in Consume().
+    if (loop_start_skip_pending_) {
+      const uint8_t skip = data->loop_subframe_skip << data->is_stereo;
+      if (skip < current_frame_remaining_subframes_) {
+        XELOGAPU(
+            "XmaContext {}: Loop start - skipping {} leading subframes "
+            "(loop_subframe_skip={})",
+            id(), skip, data->loop_subframe_skip);
+        current_frame_remaining_subframes_ -= skip;
+      }
+      loop_start_skip_pending_ = false;
+    }
   }
 
   // Compute where to go next.
@@ -576,6 +647,7 @@ void XmaContextNew::UpdateLoopStatus(XMA_CONTEXT_DATA* data) {
   }
 
   data->input_buffer_read_offset = loop_start;
+  loop_start_skip_pending_ = true;
 
   if (data->loop_count != 255) {
     data->loop_count--;

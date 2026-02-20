@@ -112,6 +112,14 @@ class XmaContextNew : public XmaContext {
 
   int32_t remaining_subframe_blocks_in_output_buffer_ = 0;
   uint8_t current_frame_remaining_subframes_ = 0;
+
+  // Loop subframe precision state.
+  // Maximum subframe blocks to output from the current frame (loop end
+  // truncation).  0 means no limit.
+  uint8_t loop_frame_output_limit_ = 0;
+  // When true, the next decoded frame should skip leading subframes per
+  // loop_subframe_skip (loop start adjustment).
+  bool loop_start_skip_pending_ = false;
 };
 
 }  // namespace apu
