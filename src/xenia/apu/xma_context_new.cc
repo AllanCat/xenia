@@ -349,15 +349,19 @@ void XmaContextNew::Decode(XMA_CONTEXT_DATA* data) {
   }
 
   uint8_t* packet = current_input_buffer + (packet_index * kBytesPerPacket);
-  // Because game can reset read offset. We must assure that new offset is
-  // valid. Splitted frames aren't handled here, so it's not a big deal.
-  const uint32_t frame_offset = xma::GetPacketFrameOffset(packet);
-  if (data->input_buffer_read_offset < frame_offset) {
-    data->input_buffer_read_offset = frame_offset;
-  }
+  const uint32_t packet_first_frame_offset = xma::GetPacketFrameOffset(packet);
+  uint32_t relative_offset = data->input_buffer_read_offset % kBitsPerPacket;
 
-  const uint32_t relative_offset =
-      data->input_buffer_read_offset % kBitsPerPacket;
+  // If the read offset is before the first frame in this packet we're in the
+  // tail of a split frame from the previous packet.  We don't have the
+  // beginning of that frame so skip ahead to the first complete frame.
+  // This also guards against games that kick the decoder with an offset
+  // pointing into the packet header (e.g. Dirt 2).
+  if (relative_offset < packet_first_frame_offset) {
+    data->input_buffer_read_offset =
+        (packet_index * kBitsPerPacket) + packet_first_frame_offset;
+    relative_offset = packet_first_frame_offset;
+  }
   kPacketInfo packet_info = GetPacketInfo(packet, relative_offset);
   const uint32_t packet_to_skip = xma::GetPacketSkipCount(packet) + 1;
   const uint32_t next_packet_index = packet_index + packet_to_skip;
