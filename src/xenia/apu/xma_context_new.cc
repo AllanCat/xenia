@@ -454,11 +454,9 @@ void XmaContextNew::Decode(XMA_CONTEXT_DATA* data) {
     // dump_raw(av_frame_, id());
     ConvertFrame(reinterpret_cast<const uint8_t**>(&av_frame_->data),
                  bool(data->is_stereo), raw_frame_.data());
+    // TODO: Be aware of subframe_skips & loops subframes skips
+    current_frame_remaining_subframes_ = 4 << data->is_stereo;
   }
-
-  // TODO: Write function to regenerate decoder
-  // TODO: Be aware of subframe_skips & loops subframes skips
-  current_frame_remaining_subframes_ = 4 << data->is_stereo;
 
   // Compute where to go next.
   if (!packet_info.isLastFrameInPacket()) {
