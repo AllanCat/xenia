@@ -291,9 +291,12 @@ void XmaContextNew::Consume(RingBuffer* XE_RESTRICT output_rb,
     }
   }
 
-  int8_t subframes_to_write =
-      std::min((int8_t)current_frame_remaining_subframes_,
-               (int8_t)data->subframe_decode_count);
+  // Guard against subframe_decode_count == 0 which would cause zero progress
+  // and an infinite loop in Work().  Treat 0 as 1 (minimum progress).
+  const uint8_t effective_sdc =
+      std::max(static_cast<uint32_t>(1), data->subframe_decode_count);
+  int8_t subframes_to_write = std::min(
+      (int8_t)current_frame_remaining_subframes_, (int8_t)effective_sdc);
 
   // Clamp to loop end limit if active.
   if (loop_frame_output_limit_ > 0) {
