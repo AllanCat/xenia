@@ -627,7 +627,7 @@ const kPacketInfo XmaContextNew::GetPacketInfo(uint8_t* packet,
     }
 
     const uint64_t frame_size = stream.Peek(kBitsPerFrameHeader);
-    if (frame_size == xma::kMaxFrameLength) {
+    if (frame_size == 0 || frame_size == xma::kMaxFrameLength) {
       break;
     }
 
