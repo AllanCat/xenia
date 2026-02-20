@@ -300,16 +300,14 @@ void XmaContextNew::Decode(XMA_CONTEXT_DATA* data) {
     return;
   }
 
-  uint8_t* current_input_buffer = GetCurrentInputBuffer(data);
-
   if (!data->IsCurrentInputBufferValid()) {
-    XELOGE(
-        "XmaContext {}: Invalid current buffer! Selected Buffer: {} Valid: {} "
-        "Pointer: {:08X}",
-        id(), data->current_buffer, data->IsCurrentInputBufferValid(),
-        data->GetCurrentInputBufferAddress());
-    return;
+    SwapInputBuffer(data);
+    if (!data->IsCurrentInputBufferValid()) {
+      return;
+    }
   }
+
+  uint8_t* current_input_buffer = GetCurrentInputBuffer(data);
 
   input_buffer_.fill(0);
 
