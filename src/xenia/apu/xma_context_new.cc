@@ -21,6 +21,7 @@ extern "C" {
 #endif
 #include "third_party/FFmpeg/libavcodec/avcodec.h"
 #include "third_party/FFmpeg/libavutil/channel_layout.h"
+#include "third_party/FFmpeg/libavutil/error.h"
 #if XE_COMPILER_MSVC
 #pragma warning(pop)
 #endif
@@ -827,6 +828,7 @@ int XmaContextNew::PrepareDecoder(int sample_rate, bool is_two_channel) {
 
     av_context_->sample_rate = sample_rate;
     av_channel_layout_default(&av_context_->ch_layout, channels);
+    av_context_->flags2 |= AV_CODEC_FLAG2_SKIP_MANUAL;
 
     if (avcodec_open2(av_context_, av_codec_, NULL) < 0) {
       XELOGE("XmaContext: Failed to reopen FFmpeg context");
@@ -853,19 +855,22 @@ bool XmaContextNew::DecodePacket(AVCodecContext* av_context,
                                  const AVPacket* av_packet, AVFrame* av_frame) {
   auto ret = avcodec_send_packet(av_context, av_packet);
   if (ret < 0) {
-    XELOGE("XmaContext {}: Error sending packet for decoding", id());
+    char errbuf[AV_ERROR_MAX_STRING_SIZE];
+    av_strerror(ret, errbuf, sizeof(errbuf));
+    XELOGE("XmaContext {}: Error sending packet for decoding: {} ({})", id(),
+           errbuf, ret);
     return false;
   }
   ret = avcodec_receive_frame(av_context, av_frame);
 
   if (ret == AVERROR(EAGAIN)) {
     // Codec needs more input before producing output (e.g. first frame warmup).
-    XELOGAPU("XmaContext {}: EAGAIN - codec needs more input (warmup frame)",
-             id());
     return false;
   }
   if (ret < 0) {
-    XELOGE("XmaContext {}: Error during decoding", id());
+    char errbuf[AV_ERROR_MAX_STRING_SIZE];
+    av_strerror(ret, errbuf, sizeof(errbuf));
+    XELOGE("XmaContext {}: Error during decoding: {} ({})", id(), errbuf, ret);
     return false;
   }
   return true;

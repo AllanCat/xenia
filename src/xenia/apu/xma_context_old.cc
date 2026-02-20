@@ -26,6 +26,7 @@ extern "C" {
 #endif
 #include "third_party/FFmpeg/libavcodec/avcodec.h"
 #include "third_party/FFmpeg/libavutil/channel_layout.h"
+#include "third_party/FFmpeg/libavutil/error.h"
 #if XE_COMPILER_MSVC
 #pragma warning(pop)
 #endif
@@ -635,19 +636,17 @@ void XmaContextOld::Decode(XMA_CONTEXT_DATA* data) {
       assert_always();
     }
     ret = avcodec_receive_frame(av_context_, av_frame_);
-    /*
-    if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
-      // TODO AVERROR_EOF???
-      break;
-    else
-    */
+    if (ret == AVERROR(EAGAIN)) {
+      return;
+    }
     if (ret < 0) {
-      XELOGE("XmaContext {}: Error - Decoding failed", id());
-      data->parser_error_status = 4;  // TODO(Gliniak): Find all parsing errors
-                                      // and create enumerator from them
+      char errbuf[AV_ERROR_MAX_STRING_SIZE];
+      av_strerror(ret, errbuf, sizeof(errbuf));
+      XELOGE("XmaContext {}: Error - Decoding failed: {} ({})", id(), errbuf,
+             ret);
+      data->parser_error_status = 4;
       SwapInputBuffer(data);
-      assert_always();
-      return;  // TODO bail out
+      return;
     }
     assert_true(ret == 0);
 
@@ -935,6 +934,7 @@ int XmaContextOld::PrepareDecoder(uint8_t* packet, int sample_rate,
 
     av_context_->sample_rate = sample_rate;
     av_channel_layout_default(&av_context_->ch_layout, channels);
+    av_context_->flags2 |= AV_CODEC_FLAG2_SKIP_MANUAL;
 
     if (avcodec_open2(av_context_, av_codec_, NULL) < 0) {
       XELOGE("XmaContext: Failed to reopen FFmpeg context");
