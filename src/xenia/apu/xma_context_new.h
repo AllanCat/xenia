@@ -37,7 +37,7 @@ struct kPacketInfo {
   uint32_t current_frame_size_;
 
   const bool isLastFrameInPacket() const {
-    return current_frame_ == frame_count_ - 1;
+    return frame_count_ == 0 || current_frame_ == frame_count_ - 1;
   }
 };
 
