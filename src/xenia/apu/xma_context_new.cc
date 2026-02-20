@@ -360,8 +360,23 @@ void XmaContextNew::Decode(XMA_CONTEXT_DATA* data) {
         (packet_index * kBitsPerPacket) + packet_first_frame_offset;
     relative_offset = packet_first_frame_offset;
   }
+  const uint8_t skip_count = xma::GetPacketSkipCount(packet);
+
+  // Full packet skip — no new frames begin in this packet (XMA2: 0xFF,
+  // XMA1: lower 8 bits of 0x7FF also reads as 0xFF).  Advance to the
+  // next sequential packet instead of trying to parse frames.
+  if (skip_count == 0xFF) {
+    uint32_t next_input_offset = GetNextPacketReadOffset(
+        current_input_buffer, packet_index + 1, current_input_packet_count);
+    if (next_input_offset == kBitsPerPacketHeader) {
+      SwapInputBuffer(data);
+    }
+    data->input_buffer_read_offset = next_input_offset;
+    return;
+  }
+
   kPacketInfo packet_info = GetPacketInfo(packet, relative_offset);
-  const uint32_t packet_to_skip = xma::GetPacketSkipCount(packet) + 1;
+  const uint32_t packet_to_skip = skip_count + 1;
   const uint32_t next_packet_index = packet_index + packet_to_skip;
 
   // Frame header split across packet boundary — combine packets to read
