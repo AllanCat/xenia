@@ -906,6 +906,9 @@ void XmaContextNew::StoreContextMerged(const XMA_CONTEXT_DATA& data,
   // DWORD 4: decoder owns current_buffer
   fresh.current_buffer = data.current_buffer;
 
+  // DWORD 9: decoder owns output_buffer_read_offset (reset by ClearLocked)
+  fresh.output_buffer_read_offset = data.output_buffer_read_offset;
+
   fresh.Store(context_ptr);
 }
 
