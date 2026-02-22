@@ -59,8 +59,7 @@ class PPCHIRBuilder : public hir::HIRBuilder {
   void UpdateCR6(Value* src_value);
   Value* LoadFPSCR();
   void StoreFPSCR(Value* value);
-  void UpdateFPSCR(Value* result, bool update_cr1, Value* src1 = nullptr,
-                   Value* src2 = nullptr, Value* src3 = nullptr);
+  void UpdateFPSCR(Value* result, bool update_cr1);
   void CopyFPSCRToCR1();
   Value* LoadXER();
   void StoreXER(Value* value);

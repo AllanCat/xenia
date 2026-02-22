@@ -450,79 +450,42 @@ void PPCHIRBuilder::StoreFPSCR(Value* value) {
   trace_reg.value = value;
 }
 
-void PPCHIRBuilder::UpdateFPSCR(Value* result, bool update_cr1, Value* src1,
-                                Value* src2, Value* src3) {
-  // Step 1: Detect new exception bits to OR into FPSCR.
-  // Detect signaling NaN (SNaN) inputs → VXSNAN.
-  // For doubles, SNaN has all-1s exponent, quiet bit (bit 51) = 0.
-  // QNaN (quiet bit = 1) does NOT trigger VXSNAN per PPC spec.
-  Value* new_vxsnan = nullptr;
-  if (src1) {
-    auto check_snan = [this](Value* v) -> Value* {
-      Value* is_nan = IsNan(v);
-      Value* quiet_bit = And(Truncate(Shr(Cast(v, INT64_TYPE), 51), INT8_TYPE),
-                             LoadConstantInt8(1));
-      return And(is_nan, Xor(quiet_bit, LoadConstantInt8(1)));
-    };
+void PPCHIRBuilder::UpdateFPSCR(Value* result, bool update_cr1) {
+  // TODO(benvanik): detect overflow and nan cases.
+  // fx and vx are the most important.
+  /*
+    chrispy: i stubbed this out at one point because all it does is waste
+     memory and CPU time, however, this introduced issues with raiden
+    (substitute w/ titleid later) which probably means they stash stuff in the
+    fpscr?
 
-    new_vxsnan = check_snan(src1);
-    Value* any_nan = IsNan(src1);
-    if (src2) {
-      new_vxsnan = Or(new_vxsnan, check_snan(src2));
-      any_nan = Or(any_nan, IsNan(src2));
-    }
-    if (src3) {
-      new_vxsnan = Or(new_vxsnan, check_snan(src3));
-      any_nan = Or(any_nan, IsNan(src3));
-    }
-    // Detect invalid op from non-NaN inputs producing NaN result
-    // (e.g., inf - inf, 0 * inf). Set VXSNAN as catch-all for now.
-    // TODO: Set specific sub-bits (VXISI, VXZDZ, VXIMZ, VXIDI).
-    Value* result_is_nan = IsNan(result);
-    Value* not_nan = Xor(any_nan, LoadConstantInt8(1));
-    new_vxsnan = Or(new_vxsnan, And(result_is_nan, not_nan));
-  }
+  */
 
-  // Step 2: Load FPSCR, OR in new sticky bits.
-  Value* fpscr = LoadFPSCR();
-  if (new_vxsnan) {
-    // VXSNAN (bit 24) and FX (bit 31) are sticky.
-    fpscr = Or(fpscr, Shl(ZeroExtend(new_vxsnan, INT32_TYPE), 24));
-    fpscr = Or(fpscr, Shl(ZeroExtend(new_vxsnan, INT32_TYPE), 31));
-  }
+  Value* fx = LoadConstantInt8(0);
+  Value* fex = LoadConstantInt8(0);
+  Value* vx = LoadConstantInt8(0);
+  Value* ox = LoadConstantInt8(0);
 
-  // Step 3: Recompute VX from all sub-bits in updated FPSCR.
-  // VXSNAN(24)|VXISI(23)|VXIDI(22)|VXZDZ(21)|VXIMZ(20)|VXVC(19)|
-  // VXSOFT(10)|VXSQRT(9)|VXCVI(8) = mask 0x01F80700
-  Value* vx = CompareNE(And(fpscr, LoadConstantUint32(0x01F80700)),
-                        LoadConstantUint32(0));
-
-  // Step 4: Compute FEX = (VX & VE) | (OX & OE) | (UX & UE) | (ZX & ZE) |
-  //                       (XX & XE).
-  // Exception bits OX(28),UX(27),ZX(26),XX(25) shifted right by 22 align with
-  // enable bits OE(6),UE(5),ZE(4),XE(3).
-  Value* exc_aligned =
-      And(And(Shr(fpscr, 22), fpscr), LoadConstantUint32(0x78));
-  Value* ve = And(Truncate(Shr(fpscr, 7), INT8_TYPE), LoadConstantInt8(1));
-  Value* fex = Or(And(vx, ve), CompareNE(exc_aligned, LoadConstantUint32(0)));
-
-  // Step 5: Read FX and OX from updated FPSCR (sticky, already OR'd in).
-  Value* fx = And(Truncate(Shr(fpscr, 31), INT8_TYPE), LoadConstantInt8(1));
-  Value* ox = And(Truncate(Shr(fpscr, 28), INT8_TYPE), LoadConstantInt8(1));
-
-  // Step 6: Store FPSCR with recomputed VX(29) and FEX(30).
-  fpscr = And(fpscr, LoadConstantUint32(0x9FFFFFFF));
-  fpscr = Or(fpscr, Shl(ZeroExtend(fex, INT32_TYPE), 30));
-  fpscr = Or(fpscr, Shl(ZeroExtend(vx, INT32_TYPE), 29));
-  StoreFPSCR(fpscr);
-
-  // Step 7: Mirror FPSCR[FX,FEX,VX,OX] to CR1 after FPSCR is finalized.
   if (update_cr1) {
+    // Store into the CR1 field.
+    // We do this instead of just calling CopyFPSCRToCR1 so that we don't
+    // have to read back the bits and do shifting work.
     StoreContext(offsetof(PPCContext, cr1.cr1_fx), fx);
     StoreContext(offsetof(PPCContext, cr1.cr1_fex), fex);
     StoreContext(offsetof(PPCContext, cr1.cr1_vx), vx);
     StoreContext(offsetof(PPCContext, cr1.cr1_ox), ox);
   }
+
+  // Generate our new bits.
+  Value* new_bits = Shl(ZeroExtend(fx, INT32_TYPE), 31);
+  new_bits = Or(new_bits, Shl(ZeroExtend(fex, INT32_TYPE), 30));
+  new_bits = Or(new_bits, Shl(ZeroExtend(vx, INT32_TYPE), 29));
+  new_bits = Or(new_bits, Shl(ZeroExtend(ox, INT32_TYPE), 28));
+
+  // Mix into fpscr while preserving sticky bits (FX and OX).
+  Value* bits = LoadFPSCR();
+  bits = Or(And(bits, LoadConstantUint32(0x9FFFFFFF)), new_bits);
+  StoreFPSCR(bits);
 }
 
 void PPCHIRBuilder::CopyFPSCRToCR1() {
