@@ -130,21 +130,15 @@ bool XmaContextNew::Work() {
   RingBuffer output_rb = PrepareOutputRingBuffer(&data);
 
   if (data.IsConsumeOnlyContext()) {
+    // Nothing to drain — don't touch the context or we'll reset the
+    // game's output buffer offsets, causing stale PCM to be re-read.
+    if (current_frame_remaining_subframes_ == 0) {
+      return true;
+    }
     XELOGAPU("XmaContext {}: Consume-only context, draining subframes", id());
     Consume(&output_rb, &data);
     data.output_buffer_write_offset =
         output_rb.write_offset() / kOutputBytesPerBlock;
-    // Clearing contexts that match TightBufferOutput heuristic can disrupt
-    // playback (e.g. audio noise during races in PGR4), so we only clear
-    // contexts with enough output buffer headroom where empty input reliably
-    // indicates the stream is finished (e.g. needed for dialog completion in
-    // Borderlands 2 startup).
-    if (!data.HasTightOutputBuffer() &&
-        current_frame_remaining_subframes_ == 0 && output_rb.empty()) {
-      XELOGAPU("XmaContext {}: Consume-only context fully drained, clearing",
-               id());
-      ClearLocked(&data);
-    }
     StoreContextMerged(data, initial_data, context_ptr);
     return true;
   }
