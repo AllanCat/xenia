@@ -111,7 +111,7 @@
      %v3bool = OpTypeVector %bool 3
    %uint_124 = OpConstant %uint 124
     %uint_23 = OpConstant %uint 23
-   %float_n1 = OpConstant %float -1
+  %float_n32 = OpConstant %float -32
       %int_0 = OpConstant %int 0
        %1959 = OpConstantComposite %v2int %int_16 %int_0
 %float_0_000976592302 = OpConstant %float 0.000976592302
@@ -170,7 +170,7 @@
        %1955 = OpConstantComposite %v2uint %uint_15 %uint_1
        %1870 = OpConstantComposite %v2uint %uint_3 %uint_3
        %2122 = OpConstantComposite %v2uint %uint_15 %uint_15
-       %1284 = OpConstantComposite %v4float %float_n1 %float_n1 %float_n1 %float_n1
+         %57 = OpConstantComposite %v4float %float_n32 %float_n32 %float_n32 %float_n32
         %770 = OpConstantComposite %v4int %int_16 %int_16 %int_16 %int_16
        %1611 = OpConstantComposite %v4uint %uint_255 %uint_255 %uint_255 %uint_255
         %261 = OpConstantComposite %v3uint %uint_1023 %uint_1023 %uint_1023
@@ -180,10 +180,10 @@
        %1018 = OpConstantComposite %v3uint %uint_124 %uint_124 %uint_124
         %393 = OpConstantComposite %v3uint %uint_23 %uint_23 %uint_23
         %141 = OpConstantComposite %v3uint %uint_16 %uint_16 %uint_16
-         %73 = OpConstantComposite %v2float %float_n1 %float_n1
+       %2105 = OpConstantComposite %v2float %float_n32 %float_n32
        %2151 = OpConstantComposite %v2int %int_16 %int_16
        %2938 = OpConstantComposite %v4float %float_0 %float_0 %float_0 %float_0
-       %1285 = OpConstantComposite %v4float %float_1 %float_1 %float_1 %float_1
+       %1284 = OpConstantComposite %v4float %float_1 %float_1 %float_1 %float_1
         %325 = OpConstantComposite %v4float %float_0_5 %float_0_5 %float_0_5 %float_0_5
        %2605 = OpConstantComposite %v3float %float_0 %float_0 %float_0
        %2584 = OpConstantComposite %v3float %float_1 %float_1 %float_1
@@ -401,7 +401,7 @@
       %13335 = OpShiftRightArithmetic %v2int %18349 %2151
       %10903 = OpConvertSToF %v2float %13335
       %18247 = OpVectorTimesScalar %v2float %10903 %float_0_000976592302
-      %24070 = OpExtInst %v2float %1 FMax %73 %18247
+      %24070 = OpExtInst %v2float %1 FMax %2105 %18247
       %24330 = OpCompositeExtract %float %24070 0
       %15572 = OpCompositeExtract %float %24070 1
       %16670 = OpCompositeConstruct %v4float %24330 %15572 %float_0 %float_0
@@ -412,7 +412,7 @@
       %13336 = OpShiftRightArithmetic %v2int %18350 %2151
       %10904 = OpConvertSToF %v2float %13336
       %18248 = OpVectorTimesScalar %v2float %10904 %float_0_000976592302
-      %24071 = OpExtInst %v2float %1 FMax %73 %18248
+      %24071 = OpExtInst %v2float %1 FMax %2105 %18248
       %24331 = OpCompositeExtract %float %24071 0
       %15573 = OpCompositeExtract %float %24071 1
       %16671 = OpCompositeConstruct %v4float %24331 %15573 %float_0 %float_0
@@ -423,7 +423,7 @@
       %13337 = OpShiftRightArithmetic %v2int %18351 %2151
       %10905 = OpConvertSToF %v2float %13337
       %18249 = OpVectorTimesScalar %v2float %10905 %float_0_000976592302
-      %24072 = OpExtInst %v2float %1 FMax %73 %18249
+      %24072 = OpExtInst %v2float %1 FMax %2105 %18249
       %24332 = OpCompositeExtract %float %24072 0
       %15574 = OpCompositeExtract %float %24072 1
       %16672 = OpCompositeConstruct %v4float %24332 %15574 %float_0 %float_0
@@ -434,7 +434,7 @@
       %13338 = OpShiftRightArithmetic %v2int %18352 %2151
       %10906 = OpConvertSToF %v2float %13338
       %18250 = OpVectorTimesScalar %v2float %10906 %float_0_000976592302
-      %24073 = OpExtInst %v2float %1 FMax %73 %18250
+      %24073 = OpExtInst %v2float %1 FMax %2105 %18250
       %24333 = OpCompositeExtract %float %24073 0
       %18764 = OpCompositeExtract %float %24073 1
        %9034 = OpCompositeConstruct %v4float %24333 %18764 %float_0 %float_0
@@ -444,7 +444,7 @@
       %20234 = OpCompositeConstruct %v3uint %22205 %22205 %22205
       %11021 = OpShiftRightLogical %v3uint %20234 %2996
       %24038 = OpBitwiseAnd %v3uint %11021 %261
-      %18588 = OpBitwiseAnd %v3uint %11021 %1126
+      %18588 = OpBitwiseAnd %v3uint %24038 %1126
       %23440 = OpShiftRightLogical %v3uint %24038 %2828
       %16585 = OpIEqual %v3bool %23440 %2578
       %11339 = OpExtInst %v3int %1 FindUMsb %18588
@@ -473,7 +473,7 @@
       %13582 = OpCompositeConstruct %v3uint %10229 %10229 %10229
       %11022 = OpShiftRightLogical %v3uint %13582 %2996
       %24039 = OpBitwiseAnd %v3uint %11022 %261
-      %18589 = OpBitwiseAnd %v3uint %11022 %1126
+      %18589 = OpBitwiseAnd %v3uint %24039 %1126
       %23441 = OpShiftRightLogical %v3uint %24039 %2828
       %16586 = OpIEqual %v3bool %23441 %2578
       %11340 = OpExtInst %v3int %1 FindUMsb %18589
@@ -502,7 +502,7 @@
       %13583 = OpCompositeConstruct %v3uint %10230 %10230 %10230
       %11023 = OpShiftRightLogical %v3uint %13583 %2996
       %24040 = OpBitwiseAnd %v3uint %11023 %261
-      %18590 = OpBitwiseAnd %v3uint %11023 %1126
+      %18590 = OpBitwiseAnd %v3uint %24040 %1126
       %23442 = OpShiftRightLogical %v3uint %24040 %2828
       %16587 = OpIEqual %v3bool %23442 %2578
       %11341 = OpExtInst %v3int %1 FindUMsb %18590
@@ -531,7 +531,7 @@
       %13584 = OpCompositeConstruct %v3uint %10231 %10231 %10231
       %11024 = OpShiftRightLogical %v3uint %13584 %2996
       %24041 = OpBitwiseAnd %v3uint %11024 %261
-      %18591 = OpBitwiseAnd %v3uint %11024 %1126
+      %18591 = OpBitwiseAnd %v3uint %24041 %1126
       %23443 = OpShiftRightLogical %v3uint %24041 %2828
       %16588 = OpIEqual %v3bool %23443 %2578
       %11342 = OpExtInst %v3int %1 FindUMsb %18591
@@ -744,7 +744,7 @@
       %15757 = OpShiftRightArithmetic %v4int %18598 %770
       %10907 = OpConvertSToF %v4float %15757
       %18209 = OpVectorTimesScalar %v4float %10907 %float_0_000976592302
-      %25233 = OpExtInst %v4float %1 FMax %1284 %18209
+      %25233 = OpExtInst %v4float %1 FMax %57 %18209
       %14187 = OpVectorShuffle %v2uint %14112 %14112 2 3
        %9407 = OpBitcast %v2int %14187
       %24783 = OpVectorShuffle %v4int %9407 %9407 0 0 1 1
@@ -752,7 +752,7 @@
       %15758 = OpShiftRightArithmetic %v4int %18599 %770
       %10908 = OpConvertSToF %v4float %15758
       %18210 = OpVectorTimesScalar %v4float %10908 %float_0_000976592302
-      %25234 = OpExtInst %v4float %1 FMax %1284 %18210
+      %25234 = OpExtInst %v4float %1 FMax %57 %18210
       %14188 = OpVectorShuffle %v2uint %11213 %11213 0 1
        %9408 = OpBitcast %v2int %14188
       %24784 = OpVectorShuffle %v4int %9408 %9408 0 0 1 1
@@ -760,7 +760,7 @@
       %15759 = OpShiftRightArithmetic %v4int %18600 %770
       %10913 = OpConvertSToF %v4float %15759
       %18211 = OpVectorTimesScalar %v4float %10913 %float_0_000976592302
-      %25235 = OpExtInst %v4float %1 FMax %1284 %18211
+      %25235 = OpExtInst %v4float %1 FMax %57 %18211
       %14189 = OpVectorShuffle %v2uint %11213 %11213 2 3
        %9409 = OpBitcast %v2int %14189
       %24785 = OpVectorShuffle %v4int %9409 %9409 0 0 1 1
@@ -768,7 +768,7 @@
       %15760 = OpShiftRightArithmetic %v4int %18601 %770
       %10914 = OpConvertSToF %v4float %15760
       %21439 = OpVectorTimesScalar %v4float %10914 %float_0_000976592302
-      %17250 = OpExtInst %v4float %1 FMax %1284 %21439
+      %17250 = OpExtInst %v4float %1 FMax %57 %21439
                OpBranch %20260
       %20310 = OpLabel
        %9763 = OpVectorShuffle %v2uint %14112 %14112 0 1
@@ -880,7 +880,7 @@
       %13339 = OpShiftRightArithmetic %v2int %18353 %2151
       %10915 = OpConvertSToF %v2float %13339
       %18251 = OpVectorTimesScalar %v2float %10915 %float_0_000976592302
-      %24074 = OpExtInst %v2float %1 FMax %73 %18251
+      %24074 = OpExtInst %v2float %1 FMax %2105 %18251
       %24334 = OpCompositeExtract %float %24074 0
       %15575 = OpCompositeExtract %float %24074 1
       %16673 = OpCompositeConstruct %v4float %24334 %15575 %float_0 %float_0
@@ -891,7 +891,7 @@
       %13340 = OpShiftRightArithmetic %v2int %18354 %2151
       %10916 = OpConvertSToF %v2float %13340
       %18252 = OpVectorTimesScalar %v2float %10916 %float_0_000976592302
-      %24075 = OpExtInst %v2float %1 FMax %73 %18252
+      %24075 = OpExtInst %v2float %1 FMax %2105 %18252
       %24335 = OpCompositeExtract %float %24075 0
       %15576 = OpCompositeExtract %float %24075 1
       %16674 = OpCompositeConstruct %v4float %24335 %15576 %float_0 %float_0
@@ -902,7 +902,7 @@
       %13341 = OpShiftRightArithmetic %v2int %18355 %2151
       %10917 = OpConvertSToF %v2float %13341
       %18253 = OpVectorTimesScalar %v2float %10917 %float_0_000976592302
-      %24076 = OpExtInst %v2float %1 FMax %73 %18253
+      %24076 = OpExtInst %v2float %1 FMax %2105 %18253
       %24336 = OpCompositeExtract %float %24076 0
       %15577 = OpCompositeExtract %float %24076 1
       %16675 = OpCompositeConstruct %v4float %24336 %15577 %float_0 %float_0
@@ -913,7 +913,7 @@
       %13342 = OpShiftRightArithmetic %v2int %18356 %2151
       %10918 = OpConvertSToF %v2float %13342
       %18254 = OpVectorTimesScalar %v2float %10918 %float_0_000976592302
-      %24077 = OpExtInst %v2float %1 FMax %73 %18254
+      %24077 = OpExtInst %v2float %1 FMax %2105 %18254
       %24337 = OpCompositeExtract %float %24077 0
       %18765 = OpCompositeExtract %float %24077 1
        %9039 = OpCompositeConstruct %v4float %24337 %18765 %float_0 %float_0
@@ -923,7 +923,7 @@
       %20237 = OpCompositeConstruct %v3uint %22208 %22208 %22208
       %11026 = OpShiftRightLogical %v3uint %20237 %2996
       %24042 = OpBitwiseAnd %v3uint %11026 %261
-      %18592 = OpBitwiseAnd %v3uint %11026 %1126
+      %18592 = OpBitwiseAnd %v3uint %24042 %1126
       %23444 = OpShiftRightLogical %v3uint %24042 %2828
       %16589 = OpIEqual %v3bool %23444 %2578
       %11343 = OpExtInst %v3int %1 FindUMsb %18592
@@ -952,7 +952,7 @@
       %13585 = OpCompositeConstruct %v3uint %10232 %10232 %10232
       %11027 = OpShiftRightLogical %v3uint %13585 %2996
       %24043 = OpBitwiseAnd %v3uint %11027 %261
-      %18593 = OpBitwiseAnd %v3uint %11027 %1126
+      %18593 = OpBitwiseAnd %v3uint %24043 %1126
       %23445 = OpShiftRightLogical %v3uint %24043 %2828
       %16590 = OpIEqual %v3bool %23445 %2578
       %11344 = OpExtInst %v3int %1 FindUMsb %18593
@@ -981,7 +981,7 @@
       %13586 = OpCompositeConstruct %v3uint %10233 %10233 %10233
       %11028 = OpShiftRightLogical %v3uint %13586 %2996
       %24044 = OpBitwiseAnd %v3uint %11028 %261
-      %18594 = OpBitwiseAnd %v3uint %11028 %1126
+      %18594 = OpBitwiseAnd %v3uint %24044 %1126
       %23446 = OpShiftRightLogical %v3uint %24044 %2828
       %16591 = OpIEqual %v3bool %23446 %2578
       %11345 = OpExtInst %v3int %1 FindUMsb %18594
@@ -1010,7 +1010,7 @@
       %13587 = OpCompositeConstruct %v3uint %10234 %10234 %10234
       %11029 = OpShiftRightLogical %v3uint %13587 %2996
       %24045 = OpBitwiseAnd %v3uint %11029 %261
-      %18595 = OpBitwiseAnd %v3uint %11029 %1126
+      %18595 = OpBitwiseAnd %v3uint %24045 %1126
       %23447 = OpShiftRightLogical %v3uint %24045 %2828
       %16592 = OpIEqual %v3bool %23447 %2578
       %11346 = OpExtInst %v3int %1 FindUMsb %18595
@@ -1223,7 +1223,7 @@
       %15761 = OpShiftRightArithmetic %v4int %18602 %770
       %10923 = OpConvertSToF %v4float %15761
       %18213 = OpVectorTimesScalar %v4float %10923 %float_0_000976592302
-      %25236 = OpExtInst %v4float %1 FMax %1284 %18213
+      %25236 = OpExtInst %v4float %1 FMax %57 %18213
       %14190 = OpVectorShuffle %v2uint %14113 %14113 2 3
        %9410 = OpBitcast %v2int %14190
       %24787 = OpVectorShuffle %v4int %9410 %9410 0 0 1 1
@@ -1231,7 +1231,7 @@
       %15762 = OpShiftRightArithmetic %v4int %18603 %770
       %10924 = OpConvertSToF %v4float %15762
       %18214 = OpVectorTimesScalar %v4float %10924 %float_0_000976592302
-      %25237 = OpExtInst %v4float %1 FMax %1284 %18214
+      %25237 = OpExtInst %v4float %1 FMax %57 %18214
       %14191 = OpVectorShuffle %v2uint %11214 %11214 0 1
        %9411 = OpBitcast %v2int %14191
       %24788 = OpVectorShuffle %v4int %9411 %9411 0 0 1 1
@@ -1239,7 +1239,7 @@
       %15763 = OpShiftRightArithmetic %v4int %18604 %770
       %10925 = OpConvertSToF %v4float %15763
       %18215 = OpVectorTimesScalar %v4float %10925 %float_0_000976592302
-      %25238 = OpExtInst %v4float %1 FMax %1284 %18215
+      %25238 = OpExtInst %v4float %1 FMax %57 %18215
       %14192 = OpVectorShuffle %v2uint %11214 %11214 2 3
        %9412 = OpBitcast %v2int %14192
       %24789 = OpVectorShuffle %v4int %9412 %9412 0 0 1 1
@@ -1247,7 +1247,7 @@
       %15764 = OpShiftRightArithmetic %v4int %18605 %770
       %10926 = OpConvertSToF %v4float %15764
       %21440 = OpVectorTimesScalar %v4float %10926 %float_0_000976592302
-      %17251 = OpExtInst %v4float %1 FMax %1284 %21440
+      %17251 = OpExtInst %v4float %1 FMax %57 %21440
                OpBranch %20262
       %20311 = OpLabel
        %9766 = OpVectorShuffle %v2uint %14113 %14113 0 1
@@ -1363,7 +1363,7 @@
       %13343 = OpShiftRightArithmetic %v2int %18357 %2151
       %10927 = OpConvertSToF %v2float %13343
       %18255 = OpVectorTimesScalar %v2float %10927 %float_0_000976592302
-      %24078 = OpExtInst %v2float %1 FMax %73 %18255
+      %24078 = OpExtInst %v2float %1 FMax %2105 %18255
       %24338 = OpCompositeExtract %float %24078 0
       %15578 = OpCompositeExtract %float %24078 1
       %16676 = OpCompositeConstruct %v4float %24338 %15578 %float_0 %float_0
@@ -1374,7 +1374,7 @@
       %13344 = OpShiftRightArithmetic %v2int %18358 %2151
       %10928 = OpConvertSToF %v2float %13344
       %18256 = OpVectorTimesScalar %v2float %10928 %float_0_000976592302
-      %24079 = OpExtInst %v2float %1 FMax %73 %18256
+      %24079 = OpExtInst %v2float %1 FMax %2105 %18256
       %24339 = OpCompositeExtract %float %24079 0
       %15579 = OpCompositeExtract %float %24079 1
       %16677 = OpCompositeConstruct %v4float %24339 %15579 %float_0 %float_0
@@ -1385,7 +1385,7 @@
       %13345 = OpShiftRightArithmetic %v2int %18359 %2151
       %10929 = OpConvertSToF %v2float %13345
       %18257 = OpVectorTimesScalar %v2float %10929 %float_0_000976592302
-      %24080 = OpExtInst %v2float %1 FMax %73 %18257
+      %24080 = OpExtInst %v2float %1 FMax %2105 %18257
       %24340 = OpCompositeExtract %float %24080 0
       %15580 = OpCompositeExtract %float %24080 1
       %16678 = OpCompositeConstruct %v4float %24340 %15580 %float_0 %float_0
@@ -1396,7 +1396,7 @@
       %13346 = OpShiftRightArithmetic %v2int %18360 %2151
       %10930 = OpConvertSToF %v2float %13346
       %18258 = OpVectorTimesScalar %v2float %10930 %float_0_000976592302
-      %24081 = OpExtInst %v2float %1 FMax %73 %18258
+      %24081 = OpExtInst %v2float %1 FMax %2105 %18258
       %24341 = OpCompositeExtract %float %24081 0
       %18766 = OpCompositeExtract %float %24081 1
        %9044 = OpCompositeConstruct %v4float %24341 %18766 %float_0 %float_0
@@ -1406,7 +1406,7 @@
       %20240 = OpCompositeConstruct %v3uint %22211 %22211 %22211
       %11031 = OpShiftRightLogical %v3uint %20240 %2996
       %24046 = OpBitwiseAnd %v3uint %11031 %261
-      %18596 = OpBitwiseAnd %v3uint %11031 %1126
+      %18596 = OpBitwiseAnd %v3uint %24046 %1126
       %23448 = OpShiftRightLogical %v3uint %24046 %2828
       %16593 = OpIEqual %v3bool %23448 %2578
       %11347 = OpExtInst %v3int %1 FindUMsb %18596
@@ -1435,7 +1435,7 @@
       %13588 = OpCompositeConstruct %v3uint %10235 %10235 %10235
       %11032 = OpShiftRightLogical %v3uint %13588 %2996
       %24047 = OpBitwiseAnd %v3uint %11032 %261
-      %18597 = OpBitwiseAnd %v3uint %11032 %1126
+      %18597 = OpBitwiseAnd %v3uint %24047 %1126
       %23449 = OpShiftRightLogical %v3uint %24047 %2828
       %16594 = OpIEqual %v3bool %23449 %2578
       %11348 = OpExtInst %v3int %1 FindUMsb %18597
@@ -1464,7 +1464,7 @@
       %13589 = OpCompositeConstruct %v3uint %10236 %10236 %10236
       %11033 = OpShiftRightLogical %v3uint %13589 %2996
       %24048 = OpBitwiseAnd %v3uint %11033 %261
-      %18606 = OpBitwiseAnd %v3uint %11033 %1126
+      %18606 = OpBitwiseAnd %v3uint %24048 %1126
       %23450 = OpShiftRightLogical %v3uint %24048 %2828
       %16595 = OpIEqual %v3bool %23450 %2578
       %11349 = OpExtInst %v3int %1 FindUMsb %18606
@@ -1493,7 +1493,7 @@
       %13590 = OpCompositeConstruct %v3uint %10237 %10237 %10237
       %11034 = OpShiftRightLogical %v3uint %13590 %2996
       %24049 = OpBitwiseAnd %v3uint %11034 %261
-      %18607 = OpBitwiseAnd %v3uint %11034 %1126
+      %18607 = OpBitwiseAnd %v3uint %24049 %1126
       %23451 = OpShiftRightLogical %v3uint %24049 %2828
       %16596 = OpIEqual %v3bool %23451 %2578
       %11350 = OpExtInst %v3int %1 FindUMsb %18607
@@ -1706,7 +1706,7 @@
       %15765 = OpShiftRightArithmetic %v4int %18608 %770
       %10935 = OpConvertSToF %v4float %15765
       %18220 = OpVectorTimesScalar %v4float %10935 %float_0_000976592302
-      %25239 = OpExtInst %v4float %1 FMax %1284 %18220
+      %25239 = OpExtInst %v4float %1 FMax %57 %18220
       %14193 = OpVectorShuffle %v2uint %14114 %14114 2 3
        %9413 = OpBitcast %v2int %14193
       %24791 = OpVectorShuffle %v4int %9413 %9413 0 0 1 1
@@ -1714,7 +1714,7 @@
       %15766 = OpShiftRightArithmetic %v4int %18609 %770
       %10936 = OpConvertSToF %v4float %15766
       %18221 = OpVectorTimesScalar %v4float %10936 %float_0_000976592302
-      %25240 = OpExtInst %v4float %1 FMax %1284 %18221
+      %25240 = OpExtInst %v4float %1 FMax %57 %18221
       %14194 = OpVectorShuffle %v2uint %11215 %11215 0 1
        %9414 = OpBitcast %v2int %14194
       %24792 = OpVectorShuffle %v4int %9414 %9414 0 0 1 1
@@ -1722,7 +1722,7 @@
       %15767 = OpShiftRightArithmetic %v4int %18610 %770
       %10937 = OpConvertSToF %v4float %15767
       %18222 = OpVectorTimesScalar %v4float %10937 %float_0_000976592302
-      %25241 = OpExtInst %v4float %1 FMax %1284 %18222
+      %25241 = OpExtInst %v4float %1 FMax %57 %18222
       %14195 = OpVectorShuffle %v2uint %11215 %11215 2 3
        %9415 = OpBitcast %v2int %14195
       %24793 = OpVectorShuffle %v4int %9415 %9415 0 0 1 1
@@ -1730,7 +1730,7 @@
       %15768 = OpShiftRightArithmetic %v4int %18611 %770
       %10938 = OpConvertSToF %v4float %15768
       %21441 = OpVectorTimesScalar %v4float %10938 %float_0_000976592302
-      %17252 = OpExtInst %v4float %1 FMax %1284 %21441
+      %17252 = OpExtInst %v4float %1 FMax %57 %21441
                OpBranch %20264
       %20312 = OpLabel
        %9769 = OpVectorShuffle %v2uint %14114 %14114 0 1
@@ -1840,7 +1840,7 @@
       %13347 = OpShiftRightArithmetic %v2int %18361 %2151
       %10939 = OpConvertSToF %v2float %13347
       %18259 = OpVectorTimesScalar %v2float %10939 %float_0_000976592302
-      %24082 = OpExtInst %v2float %1 FMax %73 %18259
+      %24082 = OpExtInst %v2float %1 FMax %2105 %18259
       %24342 = OpCompositeExtract %float %24082 0
       %15581 = OpCompositeExtract %float %24082 1
       %16679 = OpCompositeConstruct %v4float %24342 %15581 %float_0 %float_0
@@ -1851,7 +1851,7 @@
       %13348 = OpShiftRightArithmetic %v2int %18362 %2151
       %10940 = OpConvertSToF %v2float %13348
       %18260 = OpVectorTimesScalar %v2float %10940 %float_0_000976592302
-      %24083 = OpExtInst %v2float %1 FMax %73 %18260
+      %24083 = OpExtInst %v2float %1 FMax %2105 %18260
       %24343 = OpCompositeExtract %float %24083 0
       %15582 = OpCompositeExtract %float %24083 1
       %16680 = OpCompositeConstruct %v4float %24343 %15582 %float_0 %float_0
@@ -1862,7 +1862,7 @@
       %13349 = OpShiftRightArithmetic %v2int %18364 %2151
       %10941 = OpConvertSToF %v2float %13349
       %18261 = OpVectorTimesScalar %v2float %10941 %float_0_000976592302
-      %24084 = OpExtInst %v2float %1 FMax %73 %18261
+      %24084 = OpExtInst %v2float %1 FMax %2105 %18261
       %24344 = OpCompositeExtract %float %24084 0
       %15583 = OpCompositeExtract %float %24084 1
       %16681 = OpCompositeConstruct %v4float %24344 %15583 %float_0 %float_0
@@ -1873,7 +1873,7 @@
       %13350 = OpShiftRightArithmetic %v2int %18365 %2151
       %10942 = OpConvertSToF %v2float %13350
       %18262 = OpVectorTimesScalar %v2float %10942 %float_0_000976592302
-      %24085 = OpExtInst %v2float %1 FMax %73 %18262
+      %24085 = OpExtInst %v2float %1 FMax %2105 %18262
       %24345 = OpCompositeExtract %float %24085 0
       %18767 = OpCompositeExtract %float %24085 1
        %9049 = OpCompositeConstruct %v4float %24345 %18767 %float_0 %float_0
@@ -1883,7 +1883,7 @@
       %20243 = OpCompositeConstruct %v3uint %22214 %22214 %22214
       %11036 = OpShiftRightLogical %v3uint %20243 %2996
       %24050 = OpBitwiseAnd %v3uint %11036 %261
-      %18612 = OpBitwiseAnd %v3uint %11036 %1126
+      %18612 = OpBitwiseAnd %v3uint %24050 %1126
       %23452 = OpShiftRightLogical %v3uint %24050 %2828
       %16597 = OpIEqual %v3bool %23452 %2578
       %11351 = OpExtInst %v3int %1 FindUMsb %18612
@@ -1912,7 +1912,7 @@
       %13591 = OpCompositeConstruct %v3uint %10238 %10238 %10238
       %11037 = OpShiftRightLogical %v3uint %13591 %2996
       %24051 = OpBitwiseAnd %v3uint %11037 %261
-      %18613 = OpBitwiseAnd %v3uint %11037 %1126
+      %18613 = OpBitwiseAnd %v3uint %24051 %1126
       %23453 = OpShiftRightLogical %v3uint %24051 %2828
       %16598 = OpIEqual %v3bool %23453 %2578
       %11352 = OpExtInst %v3int %1 FindUMsb %18613
@@ -1941,7 +1941,7 @@
       %13592 = OpCompositeConstruct %v3uint %10239 %10239 %10239
       %11038 = OpShiftRightLogical %v3uint %13592 %2996
       %24052 = OpBitwiseAnd %v3uint %11038 %261
-      %18614 = OpBitwiseAnd %v3uint %11038 %1126
+      %18614 = OpBitwiseAnd %v3uint %24052 %1126
       %23454 = OpShiftRightLogical %v3uint %24052 %2828
       %16599 = OpIEqual %v3bool %23454 %2578
       %11353 = OpExtInst %v3int %1 FindUMsb %18614
@@ -1970,7 +1970,7 @@
       %13593 = OpCompositeConstruct %v3uint %10240 %10240 %10240
       %11039 = OpShiftRightLogical %v3uint %13593 %2996
       %24053 = OpBitwiseAnd %v3uint %11039 %261
-      %18616 = OpBitwiseAnd %v3uint %11039 %1126
+      %18616 = OpBitwiseAnd %v3uint %24053 %1126
       %23455 = OpShiftRightLogical %v3uint %24053 %2828
       %16600 = OpIEqual %v3bool %23455 %2578
       %11354 = OpExtInst %v3int %1 FindUMsb %18616
@@ -2183,7 +2183,7 @@
       %15769 = OpShiftRightArithmetic %v4int %18617 %770
       %10951 = OpConvertSToF %v4float %15769
       %18227 = OpVectorTimesScalar %v4float %10951 %float_0_000976592302
-      %25242 = OpExtInst %v4float %1 FMax %1284 %18227
+      %25242 = OpExtInst %v4float %1 FMax %57 %18227
       %14196 = OpVectorShuffle %v2uint %14115 %14115 2 3
        %9416 = OpBitcast %v2int %14196
       %24795 = OpVectorShuffle %v4int %9416 %9416 0 0 1 1
@@ -2191,7 +2191,7 @@
       %15770 = OpShiftRightArithmetic %v4int %18618 %770
       %10952 = OpConvertSToF %v4float %15770
       %18228 = OpVectorTimesScalar %v4float %10952 %float_0_000976592302
-      %25243 = OpExtInst %v4float %1 FMax %1284 %18228
+      %25243 = OpExtInst %v4float %1 FMax %57 %18228
       %14197 = OpVectorShuffle %v2uint %11216 %11216 0 1
        %9417 = OpBitcast %v2int %14197
       %24796 = OpVectorShuffle %v4int %9417 %9417 0 0 1 1
@@ -2199,7 +2199,7 @@
       %15771 = OpShiftRightArithmetic %v4int %18619 %770
       %10953 = OpConvertSToF %v4float %15771
       %18229 = OpVectorTimesScalar %v4float %10953 %float_0_000976592302
-      %25244 = OpExtInst %v4float %1 FMax %1284 %18229
+      %25244 = OpExtInst %v4float %1 FMax %57 %18229
       %14198 = OpVectorShuffle %v2uint %11216 %11216 2 3
        %9418 = OpBitcast %v2int %14198
       %24797 = OpVectorShuffle %v4int %9418 %9418 0 0 1 1
@@ -2207,7 +2207,7 @@
       %15772 = OpShiftRightArithmetic %v4int %18620 %770
       %10954 = OpConvertSToF %v4float %15772
       %21458 = OpVectorTimesScalar %v4float %10954 %float_0_000976592302
-      %17253 = OpExtInst %v4float %1 FMax %1284 %21458
+      %17253 = OpExtInst %v4float %1 FMax %57 %21458
                OpBranch %20266
       %20313 = OpLabel
        %9772 = OpVectorShuffle %v2uint %14115 %14115 0 1
@@ -2285,7 +2285,7 @@
        %7641 = OpCompositeExtract %float %14358 0
        %6565 = OpCompositeExtract %float %11189 0
        %7479 = OpCompositeConstruct %v4float %15041 %10277 %7641 %6565
-      %14406 = OpExtInst %v4float %1 FClamp %7479 %2938 %1285
+      %14406 = OpExtInst %v4float %1 FClamp %7479 %2938 %1284
       %13687 = OpVectorTimesScalar %v4float %14406 %float_65535
       %11840 = OpFAdd %v4float %13687 %325
        %7947 = OpConvertFToU %v4uint %11840
@@ -2295,7 +2295,7 @@
       %15653 = OpBitwiseOr %v2uint %6361 %13638
                OpBranch %18834
       %12647 = OpLabel
-       %7311 = OpExtInst %v4float %1 FClamp %14921 %2938 %1285
+       %7311 = OpExtInst %v4float %1 FClamp %14921 %2938 %1284
       %20339 = OpVectorTimesScalar %v4float %7311 %float_15
       %11878 = OpFAdd %v4float %20339 %325
        %7639 = OpConvertFToU %v4uint %11878
@@ -2309,7 +2309,7 @@
       %21477 = OpCompositeExtract %uint %7639 3
        %7292 = OpShiftLeftLogical %uint %21477 %int_12
        %9255 = OpBitwiseOr %uint %19815 %7292
-       %7522 = OpExtInst %v4float %1 FClamp %15191 %2938 %1285
+       %7522 = OpExtInst %v4float %1 FClamp %15191 %2938 %1284
        %8264 = OpVectorTimesScalar %v4float %7522 %float_15
       %11879 = OpFAdd %v4float %8264 %325
        %7642 = OpConvertFToU %v4uint %11879
@@ -2325,7 +2325,7 @@
       %19009 = OpBitwiseOr %uint %19817 %10745
       %22729 = OpShiftLeftLogical %uint %19009 %uint_16
        %6254 = OpBitwiseOr %uint %9255 %22729
-       %7523 = OpExtInst %v4float %1 FClamp %14358 %2938 %1285
+       %7523 = OpExtInst %v4float %1 FClamp %14358 %2938 %1284
        %8265 = OpVectorTimesScalar %v4float %7523 %float_15
       %11881 = OpFAdd %v4float %8265 %325
        %7643 = OpConvertFToU %v4uint %11881
@@ -2339,7 +2339,7 @@
       %21481 = OpCompositeExtract %uint %7643 3
        %7293 = OpShiftLeftLogical %uint %21481 %int_12
        %9256 = OpBitwiseOr %uint %19819 %7293
-       %7524 = OpExtInst %v4float %1 FClamp %11189 %2938 %1285
+       %7524 = OpExtInst %v4float %1 FClamp %11189 %2938 %1284
        %8266 = OpVectorTimesScalar %v4float %7524 %float_15
       %11882 = OpFAdd %v4float %8266 %325
        %7644 = OpConvertFToU %v4uint %11882
@@ -2363,7 +2363,7 @@
        %7645 = OpCompositeExtract %float %15191 0
        %6566 = OpCompositeExtract %float %15191 1
        %7480 = OpCompositeConstruct %v4float %19885 %10278 %7645 %6566
-      %14407 = OpExtInst %v4float %1 FClamp %7480 %2938 %1285
+      %14407 = OpExtInst %v4float %1 FClamp %7480 %2938 %1284
       %13688 = OpVectorTimesScalar %v4float %14407 %float_255
       %11883 = OpFAdd %v4float %13688 %325
        %7646 = OpConvertFToU %v4uint %11883
@@ -2382,7 +2382,7 @@
        %7647 = OpCompositeExtract %float %11189 0
        %6567 = OpCompositeExtract %float %11189 1
        %7481 = OpCompositeConstruct %v4float %20096 %23730 %7647 %6567
-      %14408 = OpExtInst %v4float %1 FClamp %7481 %2938 %1285
+      %14408 = OpExtInst %v4float %1 FClamp %7481 %2938 %1284
       %13689 = OpVectorTimesScalar %v4float %14408 %float_255
       %11884 = OpFAdd %v4float %13689 %325
        %7648 = OpConvertFToU %v4uint %11884
@@ -2509,7 +2509,7 @@
       %21472 = OpCompositeConstruct %v2uint %13707 %17995
                OpBranch %18834
       %17899 = OpLabel
-       %8873 = OpExtInst %v4float %1 FClamp %14921 %2938 %1285
+       %8873 = OpExtInst %v4float %1 FClamp %14921 %2938 %1284
       %17792 = OpFMul %v4float %8873 %2057
        %7970 = OpFAdd %v4float %17792 %325
       %10074 = OpConvertFToU %v4uint %7970
@@ -2523,7 +2523,7 @@
       %21497 = OpCompositeExtract %uint %10074 3
        %7294 = OpShiftLeftLogical %uint %21497 %int_15
        %9084 = OpBitwiseOr %uint %19835 %7294
-       %9079 = OpExtInst %v4float %1 FClamp %15191 %2938 %1285
+       %9079 = OpExtInst %v4float %1 FClamp %15191 %2938 %1284
       %24798 = OpFMul %v4float %9079 %2057
        %7971 = OpFAdd %v4float %24798 %325
       %10075 = OpConvertFToU %v4uint %7971
@@ -2539,7 +2539,7 @@
       %19015 = OpBitwiseOr %uint %19837 %10751
       %22730 = OpShiftLeftLogical %uint %19015 %uint_16
       %25154 = OpBitwiseOr %uint %9084 %22730
-       %9080 = OpExtInst %v4float %1 FClamp %14358 %2938 %1285
+       %9080 = OpExtInst %v4float %1 FClamp %14358 %2938 %1284
       %24799 = OpFMul %v4float %9080 %2057
        %7972 = OpFAdd %v4float %24799 %325
       %10076 = OpConvertFToU %v4uint %7972
@@ -2553,7 +2553,7 @@
       %21501 = OpCompositeExtract %uint %10076 3
        %7295 = OpShiftLeftLogical %uint %21501 %int_15
        %9085 = OpBitwiseOr %uint %19839 %7295
-       %9081 = OpExtInst %v4float %1 FClamp %11189 %2938 %1285
+       %9081 = OpExtInst %v4float %1 FClamp %11189 %2938 %1284
       %24800 = OpFMul %v4float %9081 %2057
        %7973 = OpFAdd %v4float %24800 %325
       %10077 = OpConvertFToU %v4uint %7973
@@ -2866,7 +2866,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x0004002B, 0x0000000B, 0x00000B87, 0x0000007F, 0x0004002B, 0x0000000B,
     0x00000A1F, 0x00000007, 0x00040017, 0x00000010, 0x00000009, 0x00000003,
     0x0004002B, 0x0000000B, 0x00000B7E, 0x0000007C, 0x0004002B, 0x0000000B,
-    0x00000A4F, 0x00000017, 0x0004002B, 0x0000000D, 0x00000341, 0xBF800000,
+    0x00000A4F, 0x00000017, 0x0004002B, 0x0000000D, 0x00000107, 0xC2000000,
     0x0004002B, 0x0000000C, 0x00000A0B, 0x00000000, 0x0005002C, 0x00000012,
     0x000007A7, 0x00000A3B, 0x00000A0B, 0x0004002B, 0x0000000D, 0x000007FE,
     0x3A800100, 0x00040017, 0x0000001A, 0x0000000C, 0x00000004, 0x0007002C,
@@ -2908,8 +2908,8 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00000A0D, 0x0005002C, 0x00000011, 0x000007A2, 0x00000A1F, 0x00000A1F,
     0x0005002C, 0x00000011, 0x000007A3, 0x00000A37, 0x00000A0D, 0x0005002C,
     0x00000011, 0x0000074E, 0x00000A13, 0x00000A13, 0x0005002C, 0x00000011,
-    0x0000084A, 0x00000A37, 0x00000A37, 0x0007002C, 0x0000001D, 0x00000504,
-    0x00000341, 0x00000341, 0x00000341, 0x00000341, 0x0007002C, 0x0000001A,
+    0x0000084A, 0x00000A37, 0x00000A37, 0x0007002C, 0x0000001D, 0x00000039,
+    0x00000107, 0x00000107, 0x00000107, 0x00000107, 0x0007002C, 0x0000001A,
     0x00000302, 0x00000A3B, 0x00000A3B, 0x00000A3B, 0x00000A3B, 0x0007002C,
     0x00000017, 0x0000064B, 0x00000144, 0x00000144, 0x00000144, 0x00000144,
     0x0006002C, 0x00000014, 0x00000105, 0x00000A44, 0x00000A44, 0x00000A44,
@@ -2919,10 +2919,10 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x0006002C, 0x00000014, 0x000003FA, 0x00000B7E, 0x00000B7E, 0x00000B7E,
     0x0006002C, 0x00000014, 0x00000189, 0x00000A4F, 0x00000A4F, 0x00000A4F,
     0x0006002C, 0x00000014, 0x0000008D, 0x00000A3A, 0x00000A3A, 0x00000A3A,
-    0x0005002C, 0x00000013, 0x00000049, 0x00000341, 0x00000341, 0x0005002C,
+    0x0005002C, 0x00000013, 0x00000839, 0x00000107, 0x00000107, 0x0005002C,
     0x00000012, 0x00000867, 0x00000A3B, 0x00000A3B, 0x0007002C, 0x0000001D,
     0x00000B7A, 0x00000A0C, 0x00000A0C, 0x00000A0C, 0x00000A0C, 0x0007002C,
-    0x0000001D, 0x00000505, 0x0000008A, 0x0000008A, 0x0000008A, 0x0000008A,
+    0x0000001D, 0x00000504, 0x0000008A, 0x0000008A, 0x0000008A, 0x0000008A,
     0x0007002C, 0x0000001D, 0x00000145, 0x000000FC, 0x000000FC, 0x000000FC,
     0x000000FC, 0x0006002C, 0x00000018, 0x00000A2D, 0x00000A0C, 0x00000A0C,
     0x00000A0C, 0x0006002C, 0x00000018, 0x00000A18, 0x0000008A, 0x0000008A,
@@ -3095,7 +3095,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x000007A7, 0x000500C3, 0x00000012, 0x00003417, 0x000047AD, 0x00000867,
     0x0004006F, 0x00000013, 0x00002A97, 0x00003417, 0x0005008E, 0x00000013,
     0x00004747, 0x00002A97, 0x000007FE, 0x0007000C, 0x00000013, 0x00005E06,
-    0x00000001, 0x00000028, 0x00000049, 0x00004747, 0x00050051, 0x0000000D,
+    0x00000001, 0x00000028, 0x00000839, 0x00004747, 0x00050051, 0x0000000D,
     0x00005F0A, 0x00005E06, 0x00000000, 0x00050051, 0x0000000D, 0x00003CD4,
     0x00005E06, 0x00000001, 0x00070050, 0x0000001D, 0x0000411E, 0x00005F0A,
     0x00003CD4, 0x00000A0C, 0x00000A0C, 0x00050051, 0x0000000B, 0x00004C42,
@@ -3104,7 +3104,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00000012, 0x000047AE, 0x0000471B, 0x000007A7, 0x000500C3, 0x00000012,
     0x00003418, 0x000047AE, 0x00000867, 0x0004006F, 0x00000013, 0x00002A98,
     0x00003418, 0x0005008E, 0x00000013, 0x00004748, 0x00002A98, 0x000007FE,
-    0x0007000C, 0x00000013, 0x00005E07, 0x00000001, 0x00000028, 0x00000049,
+    0x0007000C, 0x00000013, 0x00005E07, 0x00000001, 0x00000028, 0x00000839,
     0x00004748, 0x00050051, 0x0000000D, 0x00005F0B, 0x00005E07, 0x00000000,
     0x00050051, 0x0000000D, 0x00003CD5, 0x00005E07, 0x00000001, 0x00070050,
     0x0000001D, 0x0000411F, 0x00005F0B, 0x00003CD5, 0x00000A0C, 0x00000A0C,
@@ -3114,7 +3114,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x000007A7, 0x000500C3, 0x00000012, 0x00003419, 0x000047AF, 0x00000867,
     0x0004006F, 0x00000013, 0x00002A99, 0x00003419, 0x0005008E, 0x00000013,
     0x00004749, 0x00002A99, 0x000007FE, 0x0007000C, 0x00000013, 0x00005E08,
-    0x00000001, 0x00000028, 0x00000049, 0x00004749, 0x00050051, 0x0000000D,
+    0x00000001, 0x00000028, 0x00000839, 0x00004749, 0x00050051, 0x0000000D,
     0x00005F0C, 0x00005E08, 0x00000000, 0x00050051, 0x0000000D, 0x00003CD6,
     0x00005E08, 0x00000001, 0x00070050, 0x0000001D, 0x00004120, 0x00005F0C,
     0x00003CD6, 0x00000A0C, 0x00000A0C, 0x00050051, 0x0000000B, 0x00004C44,
@@ -3123,7 +3123,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00000012, 0x000047B0, 0x0000471D, 0x000007A7, 0x000500C3, 0x00000012,
     0x0000341A, 0x000047B0, 0x00000867, 0x0004006F, 0x00000013, 0x00002A9A,
     0x0000341A, 0x0005008E, 0x00000013, 0x0000474A, 0x00002A9A, 0x000007FE,
-    0x0007000C, 0x00000013, 0x00005E09, 0x00000001, 0x00000028, 0x00000049,
+    0x0007000C, 0x00000013, 0x00005E09, 0x00000001, 0x00000028, 0x00000839,
     0x0000474A, 0x00050051, 0x0000000D, 0x00005F0D, 0x00005E09, 0x00000000,
     0x00050051, 0x0000000D, 0x0000494C, 0x00005E09, 0x00000001, 0x00070050,
     0x0000001D, 0x0000234A, 0x00005F0D, 0x0000494C, 0x00000A0C, 0x00000A0C,
@@ -3131,7 +3131,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x000056BD, 0x00002ABF, 0x00000000, 0x00060050, 0x00000014, 0x00004F0A,
     0x000056BD, 0x000056BD, 0x000056BD, 0x000500C2, 0x00000014, 0x00002B0D,
     0x00004F0A, 0x00000BB4, 0x000500C7, 0x00000014, 0x00005DE6, 0x00002B0D,
-    0x00000105, 0x000500C7, 0x00000014, 0x0000489C, 0x00002B0D, 0x00000466,
+    0x00000105, 0x000500C7, 0x00000014, 0x0000489C, 0x00005DE6, 0x00000466,
     0x000500C2, 0x00000014, 0x00005B90, 0x00005DE6, 0x00000B0C, 0x000500AA,
     0x00000010, 0x000040C9, 0x00005B90, 0x00000A12, 0x0006000C, 0x00000016,
     0x00002C4B, 0x00000001, 0x0000004B, 0x0000489C, 0x0004007C, 0x00000014,
@@ -3156,7 +3156,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00002ABF, 0x00000001, 0x00060050, 0x00000014, 0x0000350E, 0x000027F5,
     0x000027F5, 0x000027F5, 0x000500C2, 0x00000014, 0x00002B0E, 0x0000350E,
     0x00000BB4, 0x000500C7, 0x00000014, 0x00005DE7, 0x00002B0E, 0x00000105,
-    0x000500C7, 0x00000014, 0x0000489D, 0x00002B0E, 0x00000466, 0x000500C2,
+    0x000500C7, 0x00000014, 0x0000489D, 0x00005DE7, 0x00000466, 0x000500C2,
     0x00000014, 0x00005B91, 0x00005DE7, 0x00000B0C, 0x000500AA, 0x00000010,
     0x000040CA, 0x00005B91, 0x00000A12, 0x0006000C, 0x00000016, 0x00002C4C,
     0x00000001, 0x0000004B, 0x0000489D, 0x0004007C, 0x00000014, 0x00002A16,
@@ -3181,7 +3181,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00000002, 0x00060050, 0x00000014, 0x0000350F, 0x000027F6, 0x000027F6,
     0x000027F6, 0x000500C2, 0x00000014, 0x00002B0F, 0x0000350F, 0x00000BB4,
     0x000500C7, 0x00000014, 0x00005DE8, 0x00002B0F, 0x00000105, 0x000500C7,
-    0x00000014, 0x0000489E, 0x00002B0F, 0x00000466, 0x000500C2, 0x00000014,
+    0x00000014, 0x0000489E, 0x00005DE8, 0x00000466, 0x000500C2, 0x00000014,
     0x00005B92, 0x00005DE8, 0x00000B0C, 0x000500AA, 0x00000010, 0x000040CB,
     0x00005B92, 0x00000A12, 0x0006000C, 0x00000016, 0x00002C4D, 0x00000001,
     0x0000004B, 0x0000489E, 0x0004007C, 0x00000014, 0x00002A17, 0x00002C4D,
@@ -3206,7 +3206,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00060050, 0x00000014, 0x00003510, 0x000027F7, 0x000027F7, 0x000027F7,
     0x000500C2, 0x00000014, 0x00002B10, 0x00003510, 0x00000BB4, 0x000500C7,
     0x00000014, 0x00005DE9, 0x00002B10, 0x00000105, 0x000500C7, 0x00000014,
-    0x0000489F, 0x00002B10, 0x00000466, 0x000500C2, 0x00000014, 0x00005B93,
+    0x0000489F, 0x00005DE9, 0x00000466, 0x000500C2, 0x00000014, 0x00005B93,
     0x00005DE9, 0x00000B0C, 0x000500AA, 0x00000010, 0x000040CC, 0x00005B93,
     0x00000A12, 0x0006000C, 0x00000016, 0x00002C4E, 0x00000001, 0x0000004B,
     0x0000489F, 0x0004007C, 0x00000014, 0x00002A18, 0x00002C4E, 0x00050082,
@@ -3390,7 +3390,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00000122, 0x000500C3, 0x0000001A, 0x00003D8D, 0x000048A6, 0x00000302,
     0x0004006F, 0x0000001D, 0x00002A9B, 0x00003D8D, 0x0005008E, 0x0000001D,
     0x00004721, 0x00002A9B, 0x000007FE, 0x0007000C, 0x0000001D, 0x00006291,
-    0x00000001, 0x00000028, 0x00000504, 0x00004721, 0x0007004F, 0x00000011,
+    0x00000001, 0x00000028, 0x00000039, 0x00004721, 0x0007004F, 0x00000011,
     0x0000376B, 0x00003720, 0x00003720, 0x00000002, 0x00000003, 0x0004007C,
     0x00000012, 0x000024BF, 0x0000376B, 0x0009004F, 0x0000001A, 0x000060CF,
     0x000024BF, 0x000024BF, 0x00000000, 0x00000000, 0x00000001, 0x00000001,
@@ -3398,14 +3398,14 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x0000001A, 0x00003D8E, 0x000048A7, 0x00000302, 0x0004006F, 0x0000001D,
     0x00002A9C, 0x00003D8E, 0x0005008E, 0x0000001D, 0x00004722, 0x00002A9C,
     0x000007FE, 0x0007000C, 0x0000001D, 0x00006292, 0x00000001, 0x00000028,
-    0x00000504, 0x00004722, 0x0007004F, 0x00000011, 0x0000376C, 0x00002BCD,
+    0x00000039, 0x00004722, 0x0007004F, 0x00000011, 0x0000376C, 0x00002BCD,
     0x00002BCD, 0x00000000, 0x00000001, 0x0004007C, 0x00000012, 0x000024C0,
     0x0000376C, 0x0009004F, 0x0000001A, 0x000060D0, 0x000024C0, 0x000024C0,
     0x00000000, 0x00000000, 0x00000001, 0x00000001, 0x000500C4, 0x0000001A,
     0x000048A8, 0x000060D0, 0x00000122, 0x000500C3, 0x0000001A, 0x00003D8F,
     0x000048A8, 0x00000302, 0x0004006F, 0x0000001D, 0x00002AA1, 0x00003D8F,
     0x0005008E, 0x0000001D, 0x00004723, 0x00002AA1, 0x000007FE, 0x0007000C,
-    0x0000001D, 0x00006293, 0x00000001, 0x00000028, 0x00000504, 0x00004723,
+    0x0000001D, 0x00006293, 0x00000001, 0x00000028, 0x00000039, 0x00004723,
     0x0007004F, 0x00000011, 0x0000376D, 0x00002BCD, 0x00002BCD, 0x00000002,
     0x00000003, 0x0004007C, 0x00000012, 0x000024C1, 0x0000376D, 0x0009004F,
     0x0000001A, 0x000060D1, 0x000024C1, 0x000024C1, 0x00000000, 0x00000000,
@@ -3413,7 +3413,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00000122, 0x000500C3, 0x0000001A, 0x00003D90, 0x000048A9, 0x00000302,
     0x0004006F, 0x0000001D, 0x00002AA2, 0x00003D90, 0x0005008E, 0x0000001D,
     0x000053BF, 0x00002AA2, 0x000007FE, 0x0007000C, 0x0000001D, 0x00004362,
-    0x00000001, 0x00000028, 0x00000504, 0x000053BF, 0x000200F9, 0x00004F24,
+    0x00000001, 0x00000028, 0x00000039, 0x000053BF, 0x000200F9, 0x00004F24,
     0x000200F8, 0x00004F56, 0x0007004F, 0x00000011, 0x00002623, 0x00003720,
     0x00003720, 0x00000000, 0x00000001, 0x0004007C, 0x00000013, 0x00005159,
     0x00002623, 0x00050051, 0x0000000D, 0x00001B7B, 0x00005159, 0x00000000,
@@ -3508,7 +3508,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x000500C3, 0x00000012, 0x0000341B, 0x000047B1, 0x00000867, 0x0004006F,
     0x00000013, 0x00002AA3, 0x0000341B, 0x0005008E, 0x00000013, 0x0000474B,
     0x00002AA3, 0x000007FE, 0x0007000C, 0x00000013, 0x00005E0A, 0x00000001,
-    0x00000028, 0x00000049, 0x0000474B, 0x00050051, 0x0000000D, 0x00005F0E,
+    0x00000028, 0x00000839, 0x0000474B, 0x00050051, 0x0000000D, 0x00005F0E,
     0x00005E0A, 0x00000000, 0x00050051, 0x0000000D, 0x00003CD7, 0x00005E0A,
     0x00000001, 0x00070050, 0x0000001D, 0x00004121, 0x00005F0E, 0x00003CD7,
     0x00000A0C, 0x00000A0C, 0x00050051, 0x0000000B, 0x00004C45, 0x00002AC0,
@@ -3517,7 +3517,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x000047B2, 0x0000471F, 0x000007A7, 0x000500C3, 0x00000012, 0x0000341C,
     0x000047B2, 0x00000867, 0x0004006F, 0x00000013, 0x00002AA4, 0x0000341C,
     0x0005008E, 0x00000013, 0x0000474C, 0x00002AA4, 0x000007FE, 0x0007000C,
-    0x00000013, 0x00005E0B, 0x00000001, 0x00000028, 0x00000049, 0x0000474C,
+    0x00000013, 0x00005E0B, 0x00000001, 0x00000028, 0x00000839, 0x0000474C,
     0x00050051, 0x0000000D, 0x00005F0F, 0x00005E0B, 0x00000000, 0x00050051,
     0x0000000D, 0x00003CD8, 0x00005E0B, 0x00000001, 0x00070050, 0x0000001D,
     0x00004122, 0x00005F0F, 0x00003CD8, 0x00000A0C, 0x00000A0C, 0x00050051,
@@ -3527,7 +3527,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x000500C3, 0x00000012, 0x0000341D, 0x000047B3, 0x00000867, 0x0004006F,
     0x00000013, 0x00002AA5, 0x0000341D, 0x0005008E, 0x00000013, 0x0000474D,
     0x00002AA5, 0x000007FE, 0x0007000C, 0x00000013, 0x00005E0C, 0x00000001,
-    0x00000028, 0x00000049, 0x0000474D, 0x00050051, 0x0000000D, 0x00005F10,
+    0x00000028, 0x00000839, 0x0000474D, 0x00050051, 0x0000000D, 0x00005F10,
     0x00005E0C, 0x00000000, 0x00050051, 0x0000000D, 0x00003CD9, 0x00005E0C,
     0x00000001, 0x00070050, 0x0000001D, 0x00004123, 0x00005F10, 0x00003CD9,
     0x00000A0C, 0x00000A0C, 0x00050051, 0x0000000B, 0x00004C47, 0x00002AC0,
@@ -3536,7 +3536,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x000047B4, 0x00004724, 0x000007A7, 0x000500C3, 0x00000012, 0x0000341E,
     0x000047B4, 0x00000867, 0x0004006F, 0x00000013, 0x00002AA6, 0x0000341E,
     0x0005008E, 0x00000013, 0x0000474E, 0x00002AA6, 0x000007FE, 0x0007000C,
-    0x00000013, 0x00005E0D, 0x00000001, 0x00000028, 0x00000049, 0x0000474E,
+    0x00000013, 0x00005E0D, 0x00000001, 0x00000028, 0x00000839, 0x0000474E,
     0x00050051, 0x0000000D, 0x00005F11, 0x00005E0D, 0x00000000, 0x00050051,
     0x0000000D, 0x0000494D, 0x00005E0D, 0x00000001, 0x00070050, 0x0000001D,
     0x0000234F, 0x00005F11, 0x0000494D, 0x00000A0C, 0x00000A0C, 0x000200F9,
@@ -3544,7 +3544,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00002AC0, 0x00000000, 0x00060050, 0x00000014, 0x00004F0D, 0x000056C0,
     0x000056C0, 0x000056C0, 0x000500C2, 0x00000014, 0x00002B12, 0x00004F0D,
     0x00000BB4, 0x000500C7, 0x00000014, 0x00005DEA, 0x00002B12, 0x00000105,
-    0x000500C7, 0x00000014, 0x000048A0, 0x00002B12, 0x00000466, 0x000500C2,
+    0x000500C7, 0x00000014, 0x000048A0, 0x00005DEA, 0x00000466, 0x000500C2,
     0x00000014, 0x00005B94, 0x00005DEA, 0x00000B0C, 0x000500AA, 0x00000010,
     0x000040CD, 0x00005B94, 0x00000A12, 0x0006000C, 0x00000016, 0x00002C4F,
     0x00000001, 0x0000004B, 0x000048A0, 0x0004007C, 0x00000014, 0x00002A19,
@@ -3569,7 +3569,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00000001, 0x00060050, 0x00000014, 0x00003511, 0x000027F8, 0x000027F8,
     0x000027F8, 0x000500C2, 0x00000014, 0x00002B13, 0x00003511, 0x00000BB4,
     0x000500C7, 0x00000014, 0x00005DEB, 0x00002B13, 0x00000105, 0x000500C7,
-    0x00000014, 0x000048A1, 0x00002B13, 0x00000466, 0x000500C2, 0x00000014,
+    0x00000014, 0x000048A1, 0x00005DEB, 0x00000466, 0x000500C2, 0x00000014,
     0x00005B95, 0x00005DEB, 0x00000B0C, 0x000500AA, 0x00000010, 0x000040CE,
     0x00005B95, 0x00000A12, 0x0006000C, 0x00000016, 0x00002C50, 0x00000001,
     0x0000004B, 0x000048A1, 0x0004007C, 0x00000014, 0x00002A1A, 0x00002C50,
@@ -3594,7 +3594,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00060050, 0x00000014, 0x00003512, 0x000027F9, 0x000027F9, 0x000027F9,
     0x000500C2, 0x00000014, 0x00002B14, 0x00003512, 0x00000BB4, 0x000500C7,
     0x00000014, 0x00005DEC, 0x00002B14, 0x00000105, 0x000500C7, 0x00000014,
-    0x000048A2, 0x00002B14, 0x00000466, 0x000500C2, 0x00000014, 0x00005B96,
+    0x000048A2, 0x00005DEC, 0x00000466, 0x000500C2, 0x00000014, 0x00005B96,
     0x00005DEC, 0x00000B0C, 0x000500AA, 0x00000010, 0x000040CF, 0x00005B96,
     0x00000A12, 0x0006000C, 0x00000016, 0x00002C51, 0x00000001, 0x0000004B,
     0x000048A2, 0x0004007C, 0x00000014, 0x00002A1B, 0x00002C51, 0x00050082,
@@ -3619,7 +3619,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00000014, 0x00003513, 0x000027FA, 0x000027FA, 0x000027FA, 0x000500C2,
     0x00000014, 0x00002B15, 0x00003513, 0x00000BB4, 0x000500C7, 0x00000014,
     0x00005DED, 0x00002B15, 0x00000105, 0x000500C7, 0x00000014, 0x000048A3,
-    0x00002B15, 0x00000466, 0x000500C2, 0x00000014, 0x00005B97, 0x00005DED,
+    0x00005DED, 0x00000466, 0x000500C2, 0x00000014, 0x00005B97, 0x00005DED,
     0x00000B0C, 0x000500AA, 0x00000010, 0x000040D0, 0x00005B97, 0x00000A12,
     0x0006000C, 0x00000016, 0x00002C52, 0x00000001, 0x0000004B, 0x000048A3,
     0x0004007C, 0x00000014, 0x00002A1C, 0x00002C52, 0x00050082, 0x00000014,
@@ -3803,14 +3803,14 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x000500C3, 0x0000001A, 0x00003D91, 0x000048AA, 0x00000302, 0x0004006F,
     0x0000001D, 0x00002AAB, 0x00003D91, 0x0005008E, 0x0000001D, 0x00004725,
     0x00002AAB, 0x000007FE, 0x0007000C, 0x0000001D, 0x00006294, 0x00000001,
-    0x00000028, 0x00000504, 0x00004725, 0x0007004F, 0x00000011, 0x0000376E,
+    0x00000028, 0x00000039, 0x00004725, 0x0007004F, 0x00000011, 0x0000376E,
     0x00003721, 0x00003721, 0x00000002, 0x00000003, 0x0004007C, 0x00000012,
     0x000024C2, 0x0000376E, 0x0009004F, 0x0000001A, 0x000060D3, 0x000024C2,
     0x000024C2, 0x00000000, 0x00000000, 0x00000001, 0x00000001, 0x000500C4,
     0x0000001A, 0x000048AB, 0x000060D3, 0x00000122, 0x000500C3, 0x0000001A,
     0x00003D92, 0x000048AB, 0x00000302, 0x0004006F, 0x0000001D, 0x00002AAC,
     0x00003D92, 0x0005008E, 0x0000001D, 0x00004726, 0x00002AAC, 0x000007FE,
-    0x0007000C, 0x0000001D, 0x00006295, 0x00000001, 0x00000028, 0x00000504,
+    0x0007000C, 0x0000001D, 0x00006295, 0x00000001, 0x00000028, 0x00000039,
     0x00004726, 0x0007004F, 0x00000011, 0x0000376F, 0x00002BCE, 0x00002BCE,
     0x00000000, 0x00000001, 0x0004007C, 0x00000012, 0x000024C3, 0x0000376F,
     0x0009004F, 0x0000001A, 0x000060D4, 0x000024C3, 0x000024C3, 0x00000000,
@@ -3818,7 +3818,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x000060D4, 0x00000122, 0x000500C3, 0x0000001A, 0x00003D93, 0x000048AC,
     0x00000302, 0x0004006F, 0x0000001D, 0x00002AAD, 0x00003D93, 0x0005008E,
     0x0000001D, 0x00004727, 0x00002AAD, 0x000007FE, 0x0007000C, 0x0000001D,
-    0x00006296, 0x00000001, 0x00000028, 0x00000504, 0x00004727, 0x0007004F,
+    0x00006296, 0x00000001, 0x00000028, 0x00000039, 0x00004727, 0x0007004F,
     0x00000011, 0x00003770, 0x00002BCE, 0x00002BCE, 0x00000002, 0x00000003,
     0x0004007C, 0x00000012, 0x000024C4, 0x00003770, 0x0009004F, 0x0000001A,
     0x000060D5, 0x000024C4, 0x000024C4, 0x00000000, 0x00000000, 0x00000001,
@@ -3826,7 +3826,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x000500C3, 0x0000001A, 0x00003D94, 0x000048AD, 0x00000302, 0x0004006F,
     0x0000001D, 0x00002AAE, 0x00003D94, 0x0005008E, 0x0000001D, 0x000053C0,
     0x00002AAE, 0x000007FE, 0x0007000C, 0x0000001D, 0x00004363, 0x00000001,
-    0x00000028, 0x00000504, 0x000053C0, 0x000200F9, 0x00004F26, 0x000200F8,
+    0x00000028, 0x00000039, 0x000053C0, 0x000200F9, 0x00004F26, 0x000200F8,
     0x00004F57, 0x0007004F, 0x00000011, 0x00002626, 0x00003721, 0x00003721,
     0x00000000, 0x00000001, 0x0004007C, 0x00000013, 0x0000515A, 0x00002626,
     0x00050051, 0x0000000D, 0x00001B80, 0x0000515A, 0x00000000, 0x00050051,
@@ -3924,7 +3924,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x000007A7, 0x000500C3, 0x00000012, 0x0000341F, 0x000047B5, 0x00000867,
     0x0004006F, 0x00000013, 0x00002AAF, 0x0000341F, 0x0005008E, 0x00000013,
     0x0000474F, 0x00002AAF, 0x000007FE, 0x0007000C, 0x00000013, 0x00005E0E,
-    0x00000001, 0x00000028, 0x00000049, 0x0000474F, 0x00050051, 0x0000000D,
+    0x00000001, 0x00000028, 0x00000839, 0x0000474F, 0x00050051, 0x0000000D,
     0x00005F12, 0x00005E0E, 0x00000000, 0x00050051, 0x0000000D, 0x00003CDA,
     0x00005E0E, 0x00000001, 0x00070050, 0x0000001D, 0x00004124, 0x00005F12,
     0x00003CDA, 0x00000A0C, 0x00000A0C, 0x00050051, 0x0000000B, 0x00004C48,
@@ -3933,7 +3933,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00000012, 0x000047B6, 0x00004729, 0x000007A7, 0x000500C3, 0x00000012,
     0x00003420, 0x000047B6, 0x00000867, 0x0004006F, 0x00000013, 0x00002AB0,
     0x00003420, 0x0005008E, 0x00000013, 0x00004750, 0x00002AB0, 0x000007FE,
-    0x0007000C, 0x00000013, 0x00005E0F, 0x00000001, 0x00000028, 0x00000049,
+    0x0007000C, 0x00000013, 0x00005E0F, 0x00000001, 0x00000028, 0x00000839,
     0x00004750, 0x00050051, 0x0000000D, 0x00005F13, 0x00005E0F, 0x00000000,
     0x00050051, 0x0000000D, 0x00003CDB, 0x00005E0F, 0x00000001, 0x00070050,
     0x0000001D, 0x00004125, 0x00005F13, 0x00003CDB, 0x00000A0C, 0x00000A0C,
@@ -3943,7 +3943,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x000007A7, 0x000500C3, 0x00000012, 0x00003421, 0x000047B7, 0x00000867,
     0x0004006F, 0x00000013, 0x00002AB1, 0x00003421, 0x0005008E, 0x00000013,
     0x00004751, 0x00002AB1, 0x000007FE, 0x0007000C, 0x00000013, 0x00005E10,
-    0x00000001, 0x00000028, 0x00000049, 0x00004751, 0x00050051, 0x0000000D,
+    0x00000001, 0x00000028, 0x00000839, 0x00004751, 0x00050051, 0x0000000D,
     0x00005F14, 0x00005E10, 0x00000000, 0x00050051, 0x0000000D, 0x00003CDC,
     0x00005E10, 0x00000001, 0x00070050, 0x0000001D, 0x00004126, 0x00005F14,
     0x00003CDC, 0x00000A0C, 0x00000A0C, 0x00050051, 0x0000000B, 0x00004C4A,
@@ -3952,7 +3952,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00000012, 0x000047B8, 0x0000472B, 0x000007A7, 0x000500C3, 0x00000012,
     0x00003422, 0x000047B8, 0x00000867, 0x0004006F, 0x00000013, 0x00002AB2,
     0x00003422, 0x0005008E, 0x00000013, 0x00004752, 0x00002AB2, 0x000007FE,
-    0x0007000C, 0x00000013, 0x00005E11, 0x00000001, 0x00000028, 0x00000049,
+    0x0007000C, 0x00000013, 0x00005E11, 0x00000001, 0x00000028, 0x00000839,
     0x00004752, 0x00050051, 0x0000000D, 0x00005F15, 0x00005E11, 0x00000000,
     0x00050051, 0x0000000D, 0x0000494E, 0x00005E11, 0x00000001, 0x00070050,
     0x0000001D, 0x00002354, 0x00005F15, 0x0000494E, 0x00000A0C, 0x00000A0C,
@@ -3960,7 +3960,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x000056C3, 0x00002AC1, 0x00000000, 0x00060050, 0x00000014, 0x00004F10,
     0x000056C3, 0x000056C3, 0x000056C3, 0x000500C2, 0x00000014, 0x00002B17,
     0x00004F10, 0x00000BB4, 0x000500C7, 0x00000014, 0x00005DEE, 0x00002B17,
-    0x00000105, 0x000500C7, 0x00000014, 0x000048A4, 0x00002B17, 0x00000466,
+    0x00000105, 0x000500C7, 0x00000014, 0x000048A4, 0x00005DEE, 0x00000466,
     0x000500C2, 0x00000014, 0x00005B98, 0x00005DEE, 0x00000B0C, 0x000500AA,
     0x00000010, 0x000040D1, 0x00005B98, 0x00000A12, 0x0006000C, 0x00000016,
     0x00002C53, 0x00000001, 0x0000004B, 0x000048A4, 0x0004007C, 0x00000014,
@@ -3985,7 +3985,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00002AC1, 0x00000001, 0x00060050, 0x00000014, 0x00003514, 0x000027FB,
     0x000027FB, 0x000027FB, 0x000500C2, 0x00000014, 0x00002B18, 0x00003514,
     0x00000BB4, 0x000500C7, 0x00000014, 0x00005DEF, 0x00002B18, 0x00000105,
-    0x000500C7, 0x00000014, 0x000048A5, 0x00002B18, 0x00000466, 0x000500C2,
+    0x000500C7, 0x00000014, 0x000048A5, 0x00005DEF, 0x00000466, 0x000500C2,
     0x00000014, 0x00005B99, 0x00005DEF, 0x00000B0C, 0x000500AA, 0x00000010,
     0x000040D2, 0x00005B99, 0x00000A12, 0x0006000C, 0x00000016, 0x00002C54,
     0x00000001, 0x0000004B, 0x000048A5, 0x0004007C, 0x00000014, 0x00002A1E,
@@ -4010,7 +4010,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00000002, 0x00060050, 0x00000014, 0x00003515, 0x000027FC, 0x000027FC,
     0x000027FC, 0x000500C2, 0x00000014, 0x00002B19, 0x00003515, 0x00000BB4,
     0x000500C7, 0x00000014, 0x00005DF0, 0x00002B19, 0x00000105, 0x000500C7,
-    0x00000014, 0x000048AE, 0x00002B19, 0x00000466, 0x000500C2, 0x00000014,
+    0x00000014, 0x000048AE, 0x00005DF0, 0x00000466, 0x000500C2, 0x00000014,
     0x00005B9A, 0x00005DF0, 0x00000B0C, 0x000500AA, 0x00000010, 0x000040D3,
     0x00005B9A, 0x00000A12, 0x0006000C, 0x00000016, 0x00002C55, 0x00000001,
     0x0000004B, 0x000048AE, 0x0004007C, 0x00000014, 0x00002A1F, 0x00002C55,
@@ -4035,7 +4035,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00060050, 0x00000014, 0x00003516, 0x000027FD, 0x000027FD, 0x000027FD,
     0x000500C2, 0x00000014, 0x00002B1A, 0x00003516, 0x00000BB4, 0x000500C7,
     0x00000014, 0x00005DF1, 0x00002B1A, 0x00000105, 0x000500C7, 0x00000014,
-    0x000048AF, 0x00002B1A, 0x00000466, 0x000500C2, 0x00000014, 0x00005B9B,
+    0x000048AF, 0x00005DF1, 0x00000466, 0x000500C2, 0x00000014, 0x00005B9B,
     0x00005DF1, 0x00000B0C, 0x000500AA, 0x00000010, 0x000040D4, 0x00005B9B,
     0x00000A12, 0x0006000C, 0x00000016, 0x00002C56, 0x00000001, 0x0000004B,
     0x000048AF, 0x0004007C, 0x00000014, 0x00002A20, 0x00002C56, 0x00050082,
@@ -4219,7 +4219,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00000122, 0x000500C3, 0x0000001A, 0x00003D95, 0x000048B0, 0x00000302,
     0x0004006F, 0x0000001D, 0x00002AB7, 0x00003D95, 0x0005008E, 0x0000001D,
     0x0000472C, 0x00002AB7, 0x000007FE, 0x0007000C, 0x0000001D, 0x00006297,
-    0x00000001, 0x00000028, 0x00000504, 0x0000472C, 0x0007004F, 0x00000011,
+    0x00000001, 0x00000028, 0x00000039, 0x0000472C, 0x0007004F, 0x00000011,
     0x00003771, 0x00003722, 0x00003722, 0x00000002, 0x00000003, 0x0004007C,
     0x00000012, 0x000024C5, 0x00003771, 0x0009004F, 0x0000001A, 0x000060D7,
     0x000024C5, 0x000024C5, 0x00000000, 0x00000000, 0x00000001, 0x00000001,
@@ -4227,14 +4227,14 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x0000001A, 0x00003D96, 0x000048B1, 0x00000302, 0x0004006F, 0x0000001D,
     0x00002AB8, 0x00003D96, 0x0005008E, 0x0000001D, 0x0000472D, 0x00002AB8,
     0x000007FE, 0x0007000C, 0x0000001D, 0x00006298, 0x00000001, 0x00000028,
-    0x00000504, 0x0000472D, 0x0007004F, 0x00000011, 0x00003772, 0x00002BCF,
+    0x00000039, 0x0000472D, 0x0007004F, 0x00000011, 0x00003772, 0x00002BCF,
     0x00002BCF, 0x00000000, 0x00000001, 0x0004007C, 0x00000012, 0x000024C6,
     0x00003772, 0x0009004F, 0x0000001A, 0x000060D8, 0x000024C6, 0x000024C6,
     0x00000000, 0x00000000, 0x00000001, 0x00000001, 0x000500C4, 0x0000001A,
     0x000048B2, 0x000060D8, 0x00000122, 0x000500C3, 0x0000001A, 0x00003D97,
     0x000048B2, 0x00000302, 0x0004006F, 0x0000001D, 0x00002AB9, 0x00003D97,
     0x0005008E, 0x0000001D, 0x0000472E, 0x00002AB9, 0x000007FE, 0x0007000C,
-    0x0000001D, 0x00006299, 0x00000001, 0x00000028, 0x00000504, 0x0000472E,
+    0x0000001D, 0x00006299, 0x00000001, 0x00000028, 0x00000039, 0x0000472E,
     0x0007004F, 0x00000011, 0x00003773, 0x00002BCF, 0x00002BCF, 0x00000002,
     0x00000003, 0x0004007C, 0x00000012, 0x000024C7, 0x00003773, 0x0009004F,
     0x0000001A, 0x000060D9, 0x000024C7, 0x000024C7, 0x00000000, 0x00000000,
@@ -4242,7 +4242,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00000122, 0x000500C3, 0x0000001A, 0x00003D98, 0x000048B3, 0x00000302,
     0x0004006F, 0x0000001D, 0x00002ABA, 0x00003D98, 0x0005008E, 0x0000001D,
     0x000053C1, 0x00002ABA, 0x000007FE, 0x0007000C, 0x0000001D, 0x00004364,
-    0x00000001, 0x00000028, 0x00000504, 0x000053C1, 0x000200F9, 0x00004F28,
+    0x00000001, 0x00000028, 0x00000039, 0x000053C1, 0x000200F9, 0x00004F28,
     0x000200F8, 0x00004F58, 0x0007004F, 0x00000011, 0x00002629, 0x00003722,
     0x00003722, 0x00000000, 0x00000001, 0x0004007C, 0x00000013, 0x0000515B,
     0x00002629, 0x00050051, 0x0000000D, 0x00001B84, 0x0000515B, 0x00000000,
@@ -4336,7 +4336,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x0000472F, 0x000007A7, 0x000500C3, 0x00000012, 0x00003423, 0x000047B9,
     0x00000867, 0x0004006F, 0x00000013, 0x00002ABB, 0x00003423, 0x0005008E,
     0x00000013, 0x00004753, 0x00002ABB, 0x000007FE, 0x0007000C, 0x00000013,
-    0x00005E12, 0x00000001, 0x00000028, 0x00000049, 0x00004753, 0x00050051,
+    0x00005E12, 0x00000001, 0x00000028, 0x00000839, 0x00004753, 0x00050051,
     0x0000000D, 0x00005F16, 0x00005E12, 0x00000000, 0x00050051, 0x0000000D,
     0x00003CDD, 0x00005E12, 0x00000001, 0x00070050, 0x0000001D, 0x00004127,
     0x00005F16, 0x00003CDD, 0x00000A0C, 0x00000A0C, 0x00050051, 0x0000000B,
@@ -4346,7 +4346,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00000012, 0x00003424, 0x000047BA, 0x00000867, 0x0004006F, 0x00000013,
     0x00002ABC, 0x00003424, 0x0005008E, 0x00000013, 0x00004754, 0x00002ABC,
     0x000007FE, 0x0007000C, 0x00000013, 0x00005E13, 0x00000001, 0x00000028,
-    0x00000049, 0x00004754, 0x00050051, 0x0000000D, 0x00005F17, 0x00005E13,
+    0x00000839, 0x00004754, 0x00050051, 0x0000000D, 0x00005F17, 0x00005E13,
     0x00000000, 0x00050051, 0x0000000D, 0x00003CDE, 0x00005E13, 0x00000001,
     0x00070050, 0x0000001D, 0x00004128, 0x00005F17, 0x00003CDE, 0x00000A0C,
     0x00000A0C, 0x00050051, 0x0000000B, 0x00004C4C, 0x00002AC2, 0x00000002,
@@ -4355,7 +4355,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00004731, 0x000007A7, 0x000500C3, 0x00000012, 0x00003425, 0x000047BC,
     0x00000867, 0x0004006F, 0x00000013, 0x00002ABD, 0x00003425, 0x0005008E,
     0x00000013, 0x00004755, 0x00002ABD, 0x000007FE, 0x0007000C, 0x00000013,
-    0x00005E14, 0x00000001, 0x00000028, 0x00000049, 0x00004755, 0x00050051,
+    0x00005E14, 0x00000001, 0x00000028, 0x00000839, 0x00004755, 0x00050051,
     0x0000000D, 0x00005F18, 0x00005E14, 0x00000000, 0x00050051, 0x0000000D,
     0x00003CDF, 0x00005E14, 0x00000001, 0x00070050, 0x0000001D, 0x00004129,
     0x00005F18, 0x00003CDF, 0x00000A0C, 0x00000A0C, 0x00050051, 0x0000000B,
@@ -4365,14 +4365,14 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00000012, 0x00003426, 0x000047BD, 0x00000867, 0x0004006F, 0x00000013,
     0x00002ABE, 0x00003426, 0x0005008E, 0x00000013, 0x00004756, 0x00002ABE,
     0x000007FE, 0x0007000C, 0x00000013, 0x00005E15, 0x00000001, 0x00000028,
-    0x00000049, 0x00004756, 0x00050051, 0x0000000D, 0x00005F19, 0x00005E15,
+    0x00000839, 0x00004756, 0x00050051, 0x0000000D, 0x00005F19, 0x00005E15,
     0x00000000, 0x00050051, 0x0000000D, 0x0000494F, 0x00005E15, 0x00000001,
     0x00070050, 0x0000001D, 0x00002359, 0x00005F19, 0x0000494F, 0x00000A0C,
     0x00000A0C, 0x000200F9, 0x00003F63, 0x000200F8, 0x00001CC0, 0x00050051,
     0x0000000B, 0x000056C6, 0x00002AC2, 0x00000000, 0x00060050, 0x00000014,
     0x00004F13, 0x000056C6, 0x000056C6, 0x000056C6, 0x000500C2, 0x00000014,
     0x00002B1C, 0x00004F13, 0x00000BB4, 0x000500C7, 0x00000014, 0x00005DF2,
-    0x00002B1C, 0x00000105, 0x000500C7, 0x00000014, 0x000048B4, 0x00002B1C,
+    0x00002B1C, 0x00000105, 0x000500C7, 0x00000014, 0x000048B4, 0x00005DF2,
     0x00000466, 0x000500C2, 0x00000014, 0x00005B9C, 0x00005DF2, 0x00000B0C,
     0x000500AA, 0x00000010, 0x000040D5, 0x00005B9C, 0x00000A12, 0x0006000C,
     0x00000016, 0x00002C57, 0x00000001, 0x0000004B, 0x000048B4, 0x0004007C,
@@ -4397,7 +4397,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x000027FE, 0x00002AC2, 0x00000001, 0x00060050, 0x00000014, 0x00003517,
     0x000027FE, 0x000027FE, 0x000027FE, 0x000500C2, 0x00000014, 0x00002B1D,
     0x00003517, 0x00000BB4, 0x000500C7, 0x00000014, 0x00005DF3, 0x00002B1D,
-    0x00000105, 0x000500C7, 0x00000014, 0x000048B5, 0x00002B1D, 0x00000466,
+    0x00000105, 0x000500C7, 0x00000014, 0x000048B5, 0x00005DF3, 0x00000466,
     0x000500C2, 0x00000014, 0x00005B9D, 0x00005DF3, 0x00000B0C, 0x000500AA,
     0x00000010, 0x000040D6, 0x00005B9D, 0x00000A12, 0x0006000C, 0x00000016,
     0x00002C58, 0x00000001, 0x0000004B, 0x000048B5, 0x0004007C, 0x00000014,
@@ -4422,7 +4422,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00002AC2, 0x00000002, 0x00060050, 0x00000014, 0x00003518, 0x000027FF,
     0x000027FF, 0x000027FF, 0x000500C2, 0x00000014, 0x00002B1E, 0x00003518,
     0x00000BB4, 0x000500C7, 0x00000014, 0x00005DF4, 0x00002B1E, 0x00000105,
-    0x000500C7, 0x00000014, 0x000048B6, 0x00002B1E, 0x00000466, 0x000500C2,
+    0x000500C7, 0x00000014, 0x000048B6, 0x00005DF4, 0x00000466, 0x000500C2,
     0x00000014, 0x00005B9E, 0x00005DF4, 0x00000B0C, 0x000500AA, 0x00000010,
     0x000040D7, 0x00005B9E, 0x00000A12, 0x0006000C, 0x00000016, 0x00002C59,
     0x00000001, 0x0000004B, 0x000048B6, 0x0004007C, 0x00000014, 0x00002A23,
@@ -4447,7 +4447,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00000003, 0x00060050, 0x00000014, 0x00003519, 0x00002800, 0x00002800,
     0x00002800, 0x000500C2, 0x00000014, 0x00002B1F, 0x00003519, 0x00000BB4,
     0x000500C7, 0x00000014, 0x00005DF5, 0x00002B1F, 0x00000105, 0x000500C7,
-    0x00000014, 0x000048B8, 0x00002B1F, 0x00000466, 0x000500C2, 0x00000014,
+    0x00000014, 0x000048B8, 0x00005DF5, 0x00000466, 0x000500C2, 0x00000014,
     0x00005B9F, 0x00005DF5, 0x00000B0C, 0x000500AA, 0x00000010, 0x000040D8,
     0x00005B9F, 0x00000A12, 0x0006000C, 0x00000016, 0x00002C5A, 0x00000001,
     0x0000004B, 0x000048B8, 0x0004007C, 0x00000014, 0x00002A24, 0x00002C5A,
@@ -4631,7 +4631,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x000060DA, 0x00000122, 0x000500C3, 0x0000001A, 0x00003D99, 0x000048B9,
     0x00000302, 0x0004006F, 0x0000001D, 0x00002AC7, 0x00003D99, 0x0005008E,
     0x0000001D, 0x00004733, 0x00002AC7, 0x000007FE, 0x0007000C, 0x0000001D,
-    0x0000629A, 0x00000001, 0x00000028, 0x00000504, 0x00004733, 0x0007004F,
+    0x0000629A, 0x00000001, 0x00000028, 0x00000039, 0x00004733, 0x0007004F,
     0x00000011, 0x00003774, 0x00003723, 0x00003723, 0x00000002, 0x00000003,
     0x0004007C, 0x00000012, 0x000024C8, 0x00003774, 0x0009004F, 0x0000001A,
     0x000060DB, 0x000024C8, 0x000024C8, 0x00000000, 0x00000000, 0x00000001,
@@ -4639,14 +4639,14 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x000500C3, 0x0000001A, 0x00003D9A, 0x000048BA, 0x00000302, 0x0004006F,
     0x0000001D, 0x00002AC8, 0x00003D9A, 0x0005008E, 0x0000001D, 0x00004734,
     0x00002AC8, 0x000007FE, 0x0007000C, 0x0000001D, 0x0000629B, 0x00000001,
-    0x00000028, 0x00000504, 0x00004734, 0x0007004F, 0x00000011, 0x00003775,
+    0x00000028, 0x00000039, 0x00004734, 0x0007004F, 0x00000011, 0x00003775,
     0x00002BD0, 0x00002BD0, 0x00000000, 0x00000001, 0x0004007C, 0x00000012,
     0x000024C9, 0x00003775, 0x0009004F, 0x0000001A, 0x000060DC, 0x000024C9,
     0x000024C9, 0x00000000, 0x00000000, 0x00000001, 0x00000001, 0x000500C4,
     0x0000001A, 0x000048BB, 0x000060DC, 0x00000122, 0x000500C3, 0x0000001A,
     0x00003D9B, 0x000048BB, 0x00000302, 0x0004006F, 0x0000001D, 0x00002AC9,
     0x00003D9B, 0x0005008E, 0x0000001D, 0x00004735, 0x00002AC9, 0x000007FE,
-    0x0007000C, 0x0000001D, 0x0000629C, 0x00000001, 0x00000028, 0x00000504,
+    0x0007000C, 0x0000001D, 0x0000629C, 0x00000001, 0x00000028, 0x00000039,
     0x00004735, 0x0007004F, 0x00000011, 0x00003776, 0x00002BD0, 0x00002BD0,
     0x00000002, 0x00000003, 0x0004007C, 0x00000012, 0x000024CA, 0x00003776,
     0x0009004F, 0x0000001A, 0x000060DD, 0x000024CA, 0x000024CA, 0x00000000,
@@ -4654,7 +4654,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x000060DD, 0x00000122, 0x000500C3, 0x0000001A, 0x00003D9C, 0x000048BC,
     0x00000302, 0x0004006F, 0x0000001D, 0x00002ACA, 0x00003D9C, 0x0005008E,
     0x0000001D, 0x000053D2, 0x00002ACA, 0x000007FE, 0x0007000C, 0x0000001D,
-    0x00004365, 0x00000001, 0x00000028, 0x00000504, 0x000053D2, 0x000200F9,
+    0x00004365, 0x00000001, 0x00000028, 0x00000039, 0x000053D2, 0x000200F9,
     0x00004F2A, 0x000200F8, 0x00004F59, 0x0007004F, 0x00000011, 0x0000262C,
     0x00003723, 0x00003723, 0x00000000, 0x00000001, 0x0004007C, 0x00000013,
     0x0000515D, 0x0000262C, 0x00050051, 0x0000000D, 0x00001B88, 0x0000515D,
@@ -4727,7 +4727,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00001DD9, 0x00003816, 0x00000000, 0x00050051, 0x0000000D, 0x000019A5,
     0x00002BB5, 0x00000000, 0x00070050, 0x0000001D, 0x00001D37, 0x00003AC1,
     0x00002825, 0x00001DD9, 0x000019A5, 0x0008000C, 0x0000001D, 0x00003846,
-    0x00000001, 0x0000002B, 0x00001D37, 0x00000B7A, 0x00000505, 0x0005008E,
+    0x00000001, 0x0000002B, 0x00001D37, 0x00000B7A, 0x00000504, 0x0005008E,
     0x0000001D, 0x00003577, 0x00003846, 0x0000022D, 0x00050081, 0x0000001D,
     0x00002E40, 0x00003577, 0x00000145, 0x0004006D, 0x00000017, 0x00001F0B,
     0x00002E40, 0x0007004F, 0x00000011, 0x000018D9, 0x00001F0B, 0x00001F0B,
@@ -4736,7 +4736,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00002750, 0x00000867, 0x000500C5, 0x00000011, 0x00003D25, 0x000018D9,
     0x00003546, 0x000200F9, 0x00004992, 0x000200F8, 0x00003167, 0x0008000C,
     0x0000001D, 0x00001C8F, 0x00000001, 0x0000002B, 0x00003A49, 0x00000B7A,
-    0x00000505, 0x0005008E, 0x0000001D, 0x00004F73, 0x00001C8F, 0x000001C1,
+    0x00000504, 0x0005008E, 0x0000001D, 0x00004F73, 0x00001C8F, 0x000001C1,
     0x00050081, 0x0000001D, 0x00002E66, 0x00004F73, 0x00000145, 0x0004006D,
     0x00000017, 0x00001DD7, 0x00002E66, 0x00050051, 0x0000000B, 0x000021FC,
     0x00001DD7, 0x00000000, 0x00050051, 0x0000000B, 0x00002FDB, 0x00001DD7,
@@ -4748,7 +4748,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00000003, 0x000500C4, 0x0000000B, 0x00001C7C, 0x000053E5, 0x00000A2F,
     0x000500C5, 0x0000000B, 0x00002427, 0x00004D67, 0x00001C7C, 0x0008000C,
     0x0000001D, 0x00001D62, 0x00000001, 0x0000002B, 0x00003B57, 0x00000B7A,
-    0x00000505, 0x0005008E, 0x0000001D, 0x00002048, 0x00001D62, 0x000001C1,
+    0x00000504, 0x0005008E, 0x0000001D, 0x00002048, 0x00001D62, 0x000001C1,
     0x00050081, 0x0000001D, 0x00002E67, 0x00002048, 0x00000145, 0x0004006D,
     0x00000017, 0x00001DDA, 0x00002E67, 0x00050051, 0x0000000B, 0x000021FD,
     0x00001DDA, 0x00000000, 0x00050051, 0x0000000B, 0x00002FDC, 0x00001DDA,
@@ -4761,7 +4761,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x000500C5, 0x0000000B, 0x00004A41, 0x00004D69, 0x000029F9, 0x000500C4,
     0x0000000B, 0x000058C9, 0x00004A41, 0x00000A3A, 0x000500C5, 0x0000000B,
     0x0000186E, 0x00002427, 0x000058C9, 0x0008000C, 0x0000001D, 0x00001D63,
-    0x00000001, 0x0000002B, 0x00003816, 0x00000B7A, 0x00000505, 0x0005008E,
+    0x00000001, 0x0000002B, 0x00003816, 0x00000B7A, 0x00000504, 0x0005008E,
     0x0000001D, 0x00002049, 0x00001D63, 0x000001C1, 0x00050081, 0x0000001D,
     0x00002E69, 0x00002049, 0x00000145, 0x0004006D, 0x00000017, 0x00001DDB,
     0x00002E69, 0x00050051, 0x0000000B, 0x000021FE, 0x00001DDB, 0x00000000,
@@ -4773,7 +4773,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00050051, 0x0000000B, 0x000053E9, 0x00001DDB, 0x00000003, 0x000500C4,
     0x0000000B, 0x00001C7D, 0x000053E9, 0x00000A2F, 0x000500C5, 0x0000000B,
     0x00002428, 0x00004D6B, 0x00001C7D, 0x0008000C, 0x0000001D, 0x00001D64,
-    0x00000001, 0x0000002B, 0x00002BB5, 0x00000B7A, 0x00000505, 0x0005008E,
+    0x00000001, 0x0000002B, 0x00002BB5, 0x00000B7A, 0x00000504, 0x0005008E,
     0x0000001D, 0x0000204A, 0x00001D64, 0x000001C1, 0x00050081, 0x0000001D,
     0x00002E6A, 0x0000204A, 0x00000145, 0x0004006D, 0x00000017, 0x00001DDC,
     0x00002E6A, 0x00050051, 0x0000000B, 0x000021FF, 0x00001DDC, 0x00000000,
@@ -4793,7 +4793,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00000000, 0x00050051, 0x0000000D, 0x000019A6, 0x00003B57, 0x00000001,
     0x00070050, 0x0000001D, 0x00001D38, 0x00004DAD, 0x00002826, 0x00001DDD,
     0x000019A6, 0x0008000C, 0x0000001D, 0x00003847, 0x00000001, 0x0000002B,
-    0x00001D38, 0x00000B7A, 0x00000505, 0x0005008E, 0x0000001D, 0x00003578,
+    0x00001D38, 0x00000B7A, 0x00000504, 0x0005008E, 0x0000001D, 0x00003578,
     0x00003847, 0x00000540, 0x00050081, 0x0000001D, 0x00002E6B, 0x00003578,
     0x00000145, 0x0004006D, 0x00000017, 0x00001DDE, 0x00002E6B, 0x00050051,
     0x0000000B, 0x00002200, 0x00001DDE, 0x00000000, 0x00050051, 0x0000000B,
@@ -4809,7 +4809,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x0000000D, 0x00001DDF, 0x00002BB5, 0x00000000, 0x00050051, 0x0000000D,
     0x000019A7, 0x00002BB5, 0x00000001, 0x00070050, 0x0000001D, 0x00001D39,
     0x00004E80, 0x00005CB2, 0x00001DDF, 0x000019A7, 0x0008000C, 0x0000001D,
-    0x00003848, 0x00000001, 0x0000002B, 0x00001D39, 0x00000B7A, 0x00000505,
+    0x00003848, 0x00000001, 0x0000002B, 0x00001D39, 0x00000B7A, 0x00000504,
     0x0005008E, 0x0000001D, 0x00003579, 0x00003848, 0x00000540, 0x00050081,
     0x0000001D, 0x00002E6C, 0x00003579, 0x00000145, 0x0004006D, 0x00000017,
     0x00001DE0, 0x00002E6C, 0x00050051, 0x0000000B, 0x00002201, 0x00001DE0,
@@ -4919,7 +4919,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00000A3A, 0x000500C5, 0x0000000B, 0x0000464B, 0x00004146, 0x00005DAC,
     0x00050050, 0x00000011, 0x000053E0, 0x0000358B, 0x0000464B, 0x000200F9,
     0x00004992, 0x000200F8, 0x000045EB, 0x0008000C, 0x0000001D, 0x000022A9,
-    0x00000001, 0x0000002B, 0x00003A49, 0x00000B7A, 0x00000505, 0x00050085,
+    0x00000001, 0x0000002B, 0x00003A49, 0x00000B7A, 0x00000504, 0x00050085,
     0x0000001D, 0x00004580, 0x000022A9, 0x00000809, 0x00050081, 0x0000001D,
     0x00001F22, 0x00004580, 0x00000145, 0x0004006D, 0x00000017, 0x0000275A,
     0x00001F22, 0x00050051, 0x0000000B, 0x0000220A, 0x0000275A, 0x00000000,
@@ -4931,7 +4931,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00050051, 0x0000000B, 0x000053F9, 0x0000275A, 0x00000003, 0x000500C4,
     0x0000000B, 0x00001C7E, 0x000053F9, 0x00000A38, 0x000500C5, 0x0000000B,
     0x0000237C, 0x00004D7B, 0x00001C7E, 0x0008000C, 0x0000001D, 0x00002377,
-    0x00000001, 0x0000002B, 0x00003B57, 0x00000B7A, 0x00000505, 0x00050085,
+    0x00000001, 0x0000002B, 0x00003B57, 0x00000B7A, 0x00000504, 0x00050085,
     0x0000001D, 0x000060DE, 0x00002377, 0x00000809, 0x00050081, 0x0000001D,
     0x00001F23, 0x000060DE, 0x00000145, 0x0004006D, 0x00000017, 0x0000275B,
     0x00001F23, 0x00050051, 0x0000000B, 0x0000220B, 0x0000275B, 0x00000000,
@@ -4945,7 +4945,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x00004A47, 0x00004D7D, 0x000029FF, 0x000500C4, 0x0000000B, 0x000058CA,
     0x00004A47, 0x00000A3A, 0x000500C5, 0x0000000B, 0x00006242, 0x0000237C,
     0x000058CA, 0x0008000C, 0x0000001D, 0x00002378, 0x00000001, 0x0000002B,
-    0x00003816, 0x00000B7A, 0x00000505, 0x00050085, 0x0000001D, 0x000060DF,
+    0x00003816, 0x00000B7A, 0x00000504, 0x00050085, 0x0000001D, 0x000060DF,
     0x00002378, 0x00000809, 0x00050081, 0x0000001D, 0x00001F24, 0x000060DF,
     0x00000145, 0x0004006D, 0x00000017, 0x0000275C, 0x00001F24, 0x00050051,
     0x0000000B, 0x0000220C, 0x0000275C, 0x00000000, 0x00050051, 0x0000000B,
@@ -4957,7 +4957,7 @@ const uint32_t resolve_full_16bpp_scaled_cs[] = {
     0x000053FD, 0x0000275C, 0x00000003, 0x000500C4, 0x0000000B, 0x00001C7F,
     0x000053FD, 0x00000A38, 0x000500C5, 0x0000000B, 0x0000237D, 0x00004D7F,
     0x00001C7F, 0x0008000C, 0x0000001D, 0x00002379, 0x00000001, 0x0000002B,
-    0x00002BB5, 0x00000B7A, 0x00000505, 0x00050085, 0x0000001D, 0x000060E0,
+    0x00002BB5, 0x00000B7A, 0x00000504, 0x00050085, 0x0000001D, 0x000060E0,
     0x00002379, 0x00000809, 0x00050081, 0x0000001D, 0x00001F25, 0x000060E0,
     0x00000145, 0x0004006D, 0x00000017, 0x0000275D, 0x00001F25, 0x00050051,
     0x0000000B, 0x0000220D, 0x0000275D, 0x00000000, 0x00050051, 0x0000000B,
