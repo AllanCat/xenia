@@ -2087,6 +2087,12 @@ class DevenvCommand(Command):
             print("Launching CodeLite...")
             devenv = "codelite"
 
+        print("\n- generating shaders...")
+        shader_result = build_shaders()
+        if shader_result != 0:
+            print_error("Shader generation failed")
+            return shader_result
+
         print("\n- running premake...")
         run_platform_premake(devenv=devenv)
 
