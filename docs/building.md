@@ -14,6 +14,8 @@ drivers.
 * Windows 11 SDK version 10.0.22000.0 (for Visual Studio 2022, this or any newer version)
 * [Python 3.10+ 64-bit](https://www.python.org/downloads/)
   * Ensure Python is in PATH.
+* [Vulkan SDK](https://sdk.lunarg.com/sdk/download/latest/windows/vulkan-sdk.exe)
+  * The build script will automatically detect it if installed at `C:\VulkanSDK`
 
 ```
 git clone https://github.com/xenia-canary/xenia-canary.git
