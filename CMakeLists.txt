@@ -223,12 +223,17 @@ endif()
 # ==============================================================================
 # Subdirectories
 # ==============================================================================
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # Third-party libraries first (no -Werror applied to these)
+set(CMAKE_FOLDER "third_party")
 add_subdirectory(third_party)
 
 # Xenia source modules (xe_target_defaults applies -Werror)
+set(CMAKE_FOLDER "src")
 add_subdirectory(src/xenia)
+
+set(CMAKE_FOLDER "")
 
 # Set default startup project for Visual Studio
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT xenia-app)
