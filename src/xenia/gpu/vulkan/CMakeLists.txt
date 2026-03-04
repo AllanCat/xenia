@@ -1,9 +1,6 @@
 add_library(xenia-gpu-vulkan STATIC)
 xe_platform_sources(xenia-gpu-vulkan ${CMAKE_CURRENT_SOURCE_DIR})
-# Include shader bytecode headers
-file(GLOB _vk_shader_headers   "${CMAKE_CURRENT_SOURCE_DIR}/../shaders/bytecode/vulkan_spirv/*.h"
-)
-target_sources(xenia-gpu-vulkan PRIVATE ${_vk_shader_headers})
+xe_shader_rules_spirv(xenia-gpu-vulkan ${CMAKE_CURRENT_SOURCE_DIR}/../shaders)
 target_include_directories(xenia-gpu-vulkan PRIVATE
   ${PROJECT_SOURCE_DIR}/third_party/Vulkan-Headers/include
   ${PROJECT_SOURCE_DIR}/third_party/glslang

@@ -100,6 +100,96 @@ function(xe_target_defaults target)
   endif()
 endfunction()
 
+# xe_shader_rules_spirv(target shader_dir)
+#
+# Ensures SPIR-V shaders are compiled before the target builds.
+# Uses a stamp file; rebuilds when any shader source changes.
+function(xe_shader_rules_spirv target shader_dir)
+  get_filename_component(shader_dir "${shader_dir}" ABSOLUTE)
+  file(GLOB _sources
+    "${shader_dir}/*.xesl" "${shader_dir}/*.glsl"
+    "${shader_dir}/*.xesli" "${shader_dir}/*.glsli")
+  set(_stamp "${CMAKE_CURRENT_BINARY_DIR}/${target}_spirv.stamp")
+  set(_script "${PROJECT_SOURCE_DIR}/tools/build/compile_shader_spirv.py")
+  set(_valid_stages vs hs ds gs ps cs)
+  set(_commands)
+  set(_bytecode_dir "${shader_dir}/bytecode/vulkan_spirv")
+  list(APPEND _commands COMMAND ${CMAKE_COMMAND} -E make_directory "${_bytecode_dir}")
+  foreach(src ${_sources})
+    get_filename_component(_name ${src} NAME)
+    string(REGEX REPLACE "\\.[^.]+$" "" _basename "${_name}")
+    string(REPLACE "." "_" _id "${_basename}")
+    string(LENGTH "${_id}" _len)
+    if(_len LESS 3)
+      continue()
+    endif()
+    math(EXPR _s "${_len} - 2")
+    string(SUBSTRING "${_id}" ${_s} 2 _stage)
+    if(NOT _stage IN_LIST _valid_stages)
+      continue()
+    endif()
+    list(APPEND _commands COMMAND ${Python3_EXECUTABLE} "${_script}" "${src}" "${_bytecode_dir}/${_id}.h")
+  endforeach()
+  add_custom_command(
+    OUTPUT "${_stamp}"
+    ${_commands}
+    COMMAND ${CMAKE_COMMAND} -E touch "${_stamp}"
+    DEPENDS ${_sources} "${_script}"
+    COMMENT "Compiling SPIR-V shaders for ${target}..."
+    VERBATIM
+  )
+  add_custom_target(${target}-spirv-shaders DEPENDS "${_stamp}")
+  add_dependencies(${target} ${target}-spirv-shaders)
+  # Add sources for IDE visibility but prevent VS from compiling them itself
+  set_source_files_properties(${_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
+  target_sources(${target} PRIVATE ${_sources})
+endfunction()
+
+# xe_shader_rules_dxbc(target shader_dir)
+#
+# Ensures DXBC shaders are compiled before the target builds.
+# Uses a stamp file; rebuilds when any shader source changes.
+function(xe_shader_rules_dxbc target shader_dir)
+  get_filename_component(shader_dir "${shader_dir}" ABSOLUTE)
+  file(GLOB _sources
+    "${shader_dir}/*.xesl" "${shader_dir}/*.hlsl"
+    "${shader_dir}/*.xesli" "${shader_dir}/*.hlsli")
+  set(_stamp "${CMAKE_CURRENT_BINARY_DIR}/${target}_dxbc.stamp")
+  set(_script "${PROJECT_SOURCE_DIR}/tools/build/compile_shader_dxbc.py")
+  set(_valid_stages vs hs ds gs ps cs)
+  set(_commands)
+  set(_bytecode_dir "${shader_dir}/bytecode/d3d12_5_1")
+  list(APPEND _commands COMMAND ${CMAKE_COMMAND} -E make_directory "${_bytecode_dir}")
+  foreach(src ${_sources})
+    get_filename_component(_name ${src} NAME)
+    string(REGEX REPLACE "\\.[^.]+$" "" _basename "${_name}")
+    string(REPLACE "." "_" _id "${_basename}")
+    string(LENGTH "${_id}" _len)
+    if(_len LESS 3)
+      continue()
+    endif()
+    math(EXPR _s "${_len} - 2")
+    string(SUBSTRING "${_id}" ${_s} 2 _stage)
+    if(NOT _stage IN_LIST _valid_stages)
+      continue()
+    endif()
+    list(APPEND _commands COMMAND ${Python3_EXECUTABLE} "${_script}" "${src}" "${_bytecode_dir}/${_id}.h")
+  endforeach()
+  add_custom_command(
+    OUTPUT "${_stamp}"
+    ${_commands}
+    COMMAND ${CMAKE_COMMAND} -E touch "${_stamp}"
+    DEPENDS ${_sources} "${_script}"
+    COMMENT "Compiling DXBC shaders for ${target}..."
+    VERBATIM
+  )
+  add_custom_target(${target}-dxbc-shaders DEPENDS "${_stamp}")
+  add_dependencies(${target} ${target}-dxbc-shaders)
+  # Add sources for IDE visibility but prevent VS from compiling them itself
+  set_source_files_properties(${_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
+  target_sources(${target} PRIVATE ${_sources})
+endfunction()
+
 # xe_force_c(files...)
 #
 # Forces the given source files to compile as C.

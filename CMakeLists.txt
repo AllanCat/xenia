@@ -38,6 +38,9 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/build/obj/${XE_PLATFOR
 # Create scratch/ if needed
 file(MAKE_DIRECTORY "${PROJECT_SOURCE_DIR}/scratch")
 
+# Python for shader compilation scripts
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
 # Include helpers
 include(cmake/XeniaHelpers.cmake)
 

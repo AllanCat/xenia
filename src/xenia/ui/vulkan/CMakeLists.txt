@@ -1,10 +1,7 @@
 add_library(xenia-ui-vulkan STATIC)
 xe_platform_sources(xenia-ui-vulkan ${CMAKE_CURRENT_SOURCE_DIR})
 xe_platform_sources(xenia-ui-vulkan ${CMAKE_CURRENT_SOURCE_DIR}/functions)
-# Include shader bytecode headers
-file(GLOB _vk_ui_shader_headers   "${CMAKE_CURRENT_SOURCE_DIR}/../shaders/bytecode/vulkan_spirv/*.h"
-)
-target_sources(xenia-ui-vulkan PRIVATE ${_vk_ui_shader_headers})
+xe_shader_rules_spirv(xenia-ui-vulkan ${CMAKE_CURRENT_SOURCE_DIR}/../shaders)
 target_include_directories(xenia-ui-vulkan PRIVATE
   ${PROJECT_SOURCE_DIR}/third_party/Vulkan-Headers/include
   ${PROJECT_SOURCE_DIR}/third_party/glslang

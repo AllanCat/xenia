@@ -1,9 +1,6 @@
 add_library(xenia-ui-d3d12 STATIC)
 xe_platform_sources(xenia-ui-d3d12 ${CMAKE_CURRENT_SOURCE_DIR})
-# Include shader bytecode headers
-file(GLOB _d3d12_ui_shader_headers   "${CMAKE_CURRENT_SOURCE_DIR}/../shaders/bytecode/d3d12_5_1/*.h"
-)
-target_sources(xenia-ui-d3d12 PRIVATE ${_d3d12_ui_shader_headers})
+xe_shader_rules_dxbc(xenia-ui-d3d12 ${CMAKE_CURRENT_SOURCE_DIR}/../shaders)
 target_link_libraries(xenia-ui-d3d12 PUBLIC xenia-base xenia-ui)
 xe_target_defaults(xenia-ui-d3d12)
 
