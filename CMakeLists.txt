@@ -10,6 +10,11 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 option(XENIA_BUILD_TESTS "Build test suites" OFF)
 option(XENIA_BUILD_MISC "Build misc subprojects (trace viewers, shader compiler, vfs-dump, demos)" OFF)
 
+if(XENIA_BUILD_TESTS)
+  enable_testing()
+  include(${PROJECT_SOURCE_DIR}/third_party/catch/contrib/Catch.cmake)
+endif()
+
 # Multi-config generators (VS, Ninja Multi-Config)
 get_property(_is_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if(_is_multi_config)

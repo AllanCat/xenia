@@ -1805,6 +1805,7 @@ class DevenvCommand(Command):
                 "-B", vs_build_dir,
                 "-G", "Visual Studio 17 2022",
                 "-A", "x64",
+                "-DXENIA_BUILD_TESTS=ON",
             ])
             sln_path = os.path.join(vs_build_dir, "xenia.sln")
             print(f"Opening {sln_path} in Visual Studio...")

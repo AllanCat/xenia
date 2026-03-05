@@ -247,4 +247,6 @@ function(xe_test_suite name base_path)
     # Disable Edit and Continue - breaks Catch2 __LINE__ usage
     target_compile_options(${name} PRIVATE /Zi)
   endif()
+
+  catch_discover_tests(${name})
 endfunction()
