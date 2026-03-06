@@ -137,7 +137,7 @@ class TextureCache {
         GetValidTextureBinding(fetch_constant_index);
     return binding ? binding->swizzled_signs : kSwizzledSignsUnsigned;
   }
-  bool IsActiveTextureResolved(uint32_t fetch_constant_index) const {
+  bool IsActiveTextureResolutionScaled(uint32_t fetch_constant_index) const {
     const TextureBinding* binding =
         GetValidTextureBinding(fetch_constant_index);
     if (!binding) {
@@ -263,18 +263,6 @@ class TextureCache {
     }
     uint64_t last_usage_time() const { return last_usage_time_; }
 
-    bool GetBaseResolved() const { return base_resolved_; }
-    void SetBaseResolved(bool base_resolved) {
-      assert_false(!base_resolved && key().scaled_resolve);
-      base_resolved_ = base_resolved;
-    }
-    bool GetMipsResolved() const { return mips_resolved_; }
-    void SetMipsResolved(bool mips_resolved) {
-      assert_false(!mips_resolved && key().scaled_resolve);
-      mips_resolved_ = mips_resolved;
-    }
-    bool IsResolved() const { return base_resolved_ || mips_resolved_; }
-
     bool base_outdated(const global_unique_lock_type& global_lock) const {
       return base_outdated_;
     }
@@ -331,13 +319,6 @@ class TextureCache {
     // For 3D-as-2D wrappers: use 3D tiling when loading even though the host
     // texture is 2D.
     bool force_load_3d_tiling_ = false;
-
-    // Whether the most up-to-date base / mips contain pages with data from a
-    // resolve operation (rather than from the CPU or memexport), primarily for
-    // choosing between piecewise linear gamma and sRGB when the former is
-    // emulated with the latter.
-    bool base_resolved_;
-    bool mips_resolved_;
 
     // These are to be accessed within the global critical region to synchronize
     // with shared memory.
@@ -501,11 +482,6 @@ class TextureCache {
   };
 
   struct LoadShaderInfo {
-    // Log2 of the sizes, in bytes, of the elements in the source (guest) and
-    // the destination (host) buffer bindings accessed by the copying shader,
-    // since the shader may copy multiple blocks per one invocation.
-    uint32_t source_bpe_log2;
-    uint32_t dest_bpe_log2;
     // Number of bytes in a host resolution-scaled block (corresponding to a
     // guest block if not decompressing, or a host texel if decompressing)
     // written by the shader.

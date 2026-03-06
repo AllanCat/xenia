@@ -2748,7 +2748,7 @@ bool VulkanCommandProcessor::IssueDraw(xenos::PrimitiveType prim_type,
   // Invalidate textures in memexported memory and watch for changes.
   for (const draw_util::MemExportRange& memexport_range : memexport_ranges_) {
     shared_memory_->RangeWrittenByGpu(memexport_range.base_address_dwords << 2,
-                                      memexport_range.size_bytes, false);
+                                      memexport_range.size_bytes);
   }
 
   // CPU readback for memexport data (if enabled).
@@ -4031,11 +4031,13 @@ void VulkanCommandProcessor::UpdateSystemConstantValues(
   flags |= uint32_t(alpha_test_function)
            << SpirvShaderTranslator::kSysFlag_AlphaPassIfLess_Shift;
   // Gamma writing.
-  // TODO(Triang3l): Gamma as sRGB check.
-  for (uint32_t i = 0; i < xenos::kMaxColorRenderTargets; ++i) {
-    if (color_infos[i].color_format ==
-        xenos::ColorRenderTargetFormat::k_8_8_8_8_GAMMA) {
-      flags |= SpirvShaderTranslator::kSysFlag_ConvertColor0ToGamma << i;
+  // TODO(Triang3l): Gamma as unorm8 check.
+  if (!edram_fragment_shader_interlock) {
+    for (uint32_t i = 0; i < xenos::kMaxColorRenderTargets; ++i) {
+      if (color_infos[i].color_format ==
+          xenos::ColorRenderTargetFormat::k_8_8_8_8_GAMMA) {
+        flags |= SpirvShaderTranslator::kSysFlag_ConvertColor0ToGamma << i;
+      }
     }
   }
   if (edram_fragment_shader_interlock && depth_stencil_enabled) {
@@ -4216,7 +4218,8 @@ void VulkanCommandProcessor::UpdateSystemConstantValues(
     while (xe::bit_scan_forward(textures_remaining, &texture_index)) {
       textures_remaining &= ~(UINT32_C(1) << texture_index);
       textures_resolved |=
-          uint32_t(texture_cache_->IsActiveTextureResolved(texture_index))
+          uint32_t(
+              texture_cache_->IsActiveTextureResolutionScaled(texture_index))
           << texture_index;
     }
     dirty |= system_constants_.textures_resolved != textures_resolved;

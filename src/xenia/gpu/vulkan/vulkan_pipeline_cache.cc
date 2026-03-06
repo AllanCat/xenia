@@ -74,7 +74,6 @@ bool VulkanPipelineCache::Initialize() {
       render_target_cache_.msaa_2x_attachments_supported(),
       render_target_cache_.msaa_2x_no_attachments_supported(),
       edram_fragment_shader_interlock,
-      render_target_cache_.gamma_render_target_as_srgb(),
       render_target_cache_.draw_resolution_scale_x(),
       render_target_cache_.draw_resolution_scale_y());
 

@@ -510,48 +510,6 @@ D3D12CommandProcessor::GetSystemBindlessViewHandlePair(
 }
 
 ui::d3d12::util::DescriptorCpuGpuHandlePair
-D3D12CommandProcessor::GetSharedMemoryUintPow2BindlessSRVHandlePair(
-    uint32_t element_size_bytes_pow2) const {
-  SystemBindlessView view;
-  switch (element_size_bytes_pow2) {
-    case 2:
-      view = SystemBindlessView::kSharedMemoryR32UintSRV;
-      break;
-    case 3:
-      view = SystemBindlessView::kSharedMemoryR32G32UintSRV;
-      break;
-    case 4:
-      view = SystemBindlessView::kSharedMemoryR32G32B32A32UintSRV;
-      break;
-    default:
-      assert_unhandled_case(element_size_bytes_pow2);
-      view = SystemBindlessView::kSharedMemoryR32UintSRV;
-  }
-  return GetSystemBindlessViewHandlePair(view);
-}
-
-ui::d3d12::util::DescriptorCpuGpuHandlePair
-D3D12CommandProcessor::GetSharedMemoryUintPow2BindlessUAVHandlePair(
-    uint32_t element_size_bytes_pow2) const {
-  SystemBindlessView view;
-  switch (element_size_bytes_pow2) {
-    case 2:
-      view = SystemBindlessView::kSharedMemoryR32UintUAV;
-      break;
-    case 3:
-      view = SystemBindlessView::kSharedMemoryR32G32UintUAV;
-      break;
-    case 4:
-      view = SystemBindlessView::kSharedMemoryR32G32B32A32UintUAV;
-      break;
-    default:
-      assert_unhandled_case(element_size_bytes_pow2);
-      view = SystemBindlessView::kSharedMemoryR32UintUAV;
-  }
-  return GetSystemBindlessViewHandlePair(view);
-}
-
-ui::d3d12::util::DescriptorCpuGpuHandlePair
 D3D12CommandProcessor::GetEdramUintPow2BindlessSRVHandlePair(
     uint32_t element_size_bytes_pow2) const {
   SystemBindlessView view;
@@ -1503,46 +1461,10 @@ bool D3D12CommandProcessor::SetupContext() {
     shared_memory_->WriteRawSRVDescriptor(provider.OffsetViewDescriptor(
         view_bindless_heap_cpu_start_,
         uint32_t(SystemBindlessView::kSharedMemoryRawSRV)));
-    // kSharedMemoryR32UintSRV.
-    shared_memory_->WriteUintPow2SRVDescriptor(
-        provider.OffsetViewDescriptor(
-            view_bindless_heap_cpu_start_,
-            uint32_t(SystemBindlessView::kSharedMemoryR32UintSRV)),
-        2);
-    // kSharedMemoryR32G32UintSRV.
-    shared_memory_->WriteUintPow2SRVDescriptor(
-        provider.OffsetViewDescriptor(
-            view_bindless_heap_cpu_start_,
-            uint32_t(SystemBindlessView::kSharedMemoryR32G32UintSRV)),
-        3);
-    // kSharedMemoryR32G32B32A32UintSRV.
-    shared_memory_->WriteUintPow2SRVDescriptor(
-        provider.OffsetViewDescriptor(
-            view_bindless_heap_cpu_start_,
-            uint32_t(SystemBindlessView::kSharedMemoryR32G32B32A32UintSRV)),
-        4);
     // kSharedMemoryRawUAV.
     shared_memory_->WriteRawUAVDescriptor(provider.OffsetViewDescriptor(
         view_bindless_heap_cpu_start_,
         uint32_t(SystemBindlessView::kSharedMemoryRawUAV)));
-    // kSharedMemoryR32UintUAV.
-    shared_memory_->WriteUintPow2UAVDescriptor(
-        provider.OffsetViewDescriptor(
-            view_bindless_heap_cpu_start_,
-            uint32_t(SystemBindlessView::kSharedMemoryR32UintUAV)),
-        2);
-    // kSharedMemoryR32G32UintUAV.
-    shared_memory_->WriteUintPow2UAVDescriptor(
-        provider.OffsetViewDescriptor(
-            view_bindless_heap_cpu_start_,
-            uint32_t(SystemBindlessView::kSharedMemoryR32G32UintUAV)),
-        3);
-    // kSharedMemoryR32G32B32A32UintUAV.
-    shared_memory_->WriteUintPow2UAVDescriptor(
-        provider.OffsetViewDescriptor(
-            view_bindless_heap_cpu_start_,
-            uint32_t(SystemBindlessView::kSharedMemoryR32G32B32A32UintUAV)),
-        4);
     // kEdramRawSRV.
     render_target_cache_->WriteEdramRawSRVDescriptor(
         provider.OffsetViewDescriptor(
@@ -2646,7 +2568,6 @@ bool D3D12CommandProcessor::IssueDraw(xenos::PrimitiveType primitive_type,
   if (host_render_targets_used) {
     bound_depth_and_color_render_target_bits =
         render_target_cache_->GetLastUpdateBoundRenderTargets(
-            render_target_cache_->gamma_render_target_as_srgb(),
             bound_depth_and_color_render_target_formats);
   } else {
     bound_depth_and_color_render_target_bits = 0;
@@ -2979,8 +2900,7 @@ bool D3D12CommandProcessor::IssueDraw(xenos::PrimitiveType primitive_type,
     // Invalidate textures in memexported memory and watch for changes.
     for (const draw_util::MemExportRange& memexport_range : memexport_ranges_) {
       shared_memory_->RangeWrittenByGpu(
-          memexport_range.base_address_dwords << 2, memexport_range.size_bytes,
-          false);
+          memexport_range.base_address_dwords << 2, memexport_range.size_bytes);
     }
     if (GetGPUSetting(GPUSetting::ReadbackMemexport)) {
       // Read the exported data on the CPU.
@@ -3785,7 +3705,8 @@ XE_NOINLINE void D3D12CommandProcessor::UpdateSystemConstantValues_Impl(
   flags |= uint32_t(alpha_test_function)
            << DxbcShaderTranslator::kSysFlag_AlphaPassIfLess_Shift;
   // Gamma writing.
-  if (!render_target_cache_->gamma_render_target_as_srgb()) {
+  if (!(edram_rov_used ||
+        render_target_cache_->gamma_render_target_as_unorm16())) {
     for (uint32_t i = 0; i < 4; ++i) {
       if (color_infos[i].color_format ==
           xenos::ColorRenderTargetFormat::k_8_8_8_8_GAMMA) {
@@ -3952,9 +3873,7 @@ XE_NOINLINE void D3D12CommandProcessor::UpdateSystemConstantValues_Impl(
   }
 
   // Texture signedness / gamma.
-  bool gamma_render_target_as_srgb =
-      render_target_cache_->gamma_render_target_as_srgb();
-  uint32_t textures_resolved = 0;
+  uint32_t textures_resolution_scaled = 0;
   uint32_t textures_remaining = used_texture_mask;
   uint32_t texture_index;
   while (xe::bit_scan_forward(textures_remaining, &texture_index)) {
@@ -3974,14 +3893,14 @@ XE_NOINLINE void D3D12CommandProcessor::UpdateSystemConstantValues_Impl(
     texture_signs_uint =
         (texture_signs_uint & ~texture_signs_mask) | texture_signs_shifted;
     // cache misses here, we're accessing the texture bindings out of order
-    textures_resolved |=
-        uint32_t(texture_cache_->IsActiveTextureResolved(texture_index))
+    textures_resolution_scaled |=
+        uint32_t(texture_cache_->IsActiveTextureResolutionScaled(texture_index))
         << texture_index;
   }
 
-  update_dirty_uint32_cmp(system_constants_.textures_resolved,
-                          textures_resolved);
-  system_constants_.textures_resolved = textures_resolved;
+  update_dirty_uint32_cmp(system_constants_.textures_resolution_scaled,
+                          textures_resolution_scaled);
+  system_constants_.textures_resolution_scaled = textures_resolution_scaled;
 
   // Log2 of sample count, for alpha to mask and with ROV, for EDRAM address
   // calculation with MSAA.
