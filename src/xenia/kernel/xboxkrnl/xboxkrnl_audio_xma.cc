@@ -191,7 +191,7 @@ DECLARE_XBOXKRNL_EXPORT2(XMAInitializeContext, kAudio, kImplemented,
                          kHighFrequency);
 
 dword_result_t XMASetLoopData_entry(lpvoid_t context_ptr,
-                                    pointer_t<XMA_CONTEXT_DATA> loop_data) {
+                                    pointer_t<XMA_LOOP_DATA> loop_data) {
   XMA_CONTEXT_DATA context(context_ptr);
 
   context.loop_start = loop_data->loop_start;
