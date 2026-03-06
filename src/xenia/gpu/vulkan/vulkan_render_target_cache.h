@@ -58,7 +58,6 @@ class VulkanRenderTargetCache final : public RenderTargetCache {
       // even for kD24S8.
       xenos::DepthRenderTargetFormat depth_format
           : xenos::kDepthRenderTargetFormatBits;  // 8
-      // Linear or sRGB included if host sRGB is used.
       xenos::ColorRenderTargetFormat color_0_view_format
           : xenos::kColorRenderTargetFormatBits;  // 12
       xenos::ColorRenderTargetFormat color_1_view_format
@@ -155,9 +154,6 @@ class VulkanRenderTargetCache final : public RenderTargetCache {
     return depth_unorm24_vulkan_format_supported_;
   }
   bool depth_float24_round() const { return depth_float24_round_; }
-  bool gamma_render_target_as_srgb() const {
-    return gamma_render_target_as_srgb_;
-  }
 
   bool msaa_2x_attachments_supported() const {
     return msaa_2x_attachments_supported_;
@@ -186,6 +182,8 @@ class VulkanRenderTargetCache final : public RenderTargetCache {
       bool* is_integer_out = nullptr) const;
 
  protected:
+  bool IsGammaFormatHostStorageSeparate() const override;
+
   uint32_t GetMaxRenderTargetWidth() const override;
   uint32_t GetMaxRenderTargetHeight() const override;
 
@@ -336,7 +334,6 @@ class VulkanRenderTargetCache final : public RenderTargetCache {
                        VkImage image, VkDeviceMemory memory,
                        VkImageView view_depth_color,
                        VkImageView view_depth_stencil, VkImageView view_stencil,
-                       VkImageView view_srgb,
                        VkImageView view_color_transfer_separate,
                        size_t descriptor_set_index_transfer_source)
         : RenderTarget(key),
@@ -346,7 +343,6 @@ class VulkanRenderTargetCache final : public RenderTargetCache {
           view_depth_color_(view_depth_color),
           view_depth_stencil_(view_depth_stencil),
           view_stencil_(view_stencil),
-          view_srgb_(view_srgb),
           view_color_transfer_separate_(view_color_transfer_separate),
           descriptor_set_index_transfer_source_(
               descriptor_set_index_transfer_source) {}
@@ -421,7 +417,6 @@ class VulkanRenderTargetCache final : public RenderTargetCache {
     // Optional views.
     VkImageView view_depth_stencil_;
     VkImageView view_stencil_;
-    VkImageView view_srgb_;
     VkImageView view_color_transfer_separate_;
 
     // 2 sampled images for depth / stencil, 1 sampled image for color.
@@ -866,7 +861,7 @@ class VulkanRenderTargetCache final : public RenderTargetCache {
   void DumpRenderTargets(uint32_t dump_base, uint32_t dump_row_length_used,
                          uint32_t dump_rows, uint32_t dump_pitch);
 
-  bool gamma_render_target_as_srgb_ = false;
+  bool gamma_render_target_as_unorm16_ = false;
 
   bool depth_unorm24_vulkan_format_supported_ = false;
   bool depth_float24_round_ = false;

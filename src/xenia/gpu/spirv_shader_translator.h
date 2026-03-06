@@ -390,14 +390,12 @@ class SpirvShaderTranslator : public ShaderTranslator {
                         bool native_2x_msaa_with_attachments,
                         bool native_2x_msaa_no_attachments,
                         bool edram_fragment_shader_interlock,
-                        bool gamma_render_target_as_srgb = false,
                         uint32_t draw_resolution_scale_x = 1,
                         uint32_t draw_resolution_scale_y = 1)
       : features_(features),
         native_2x_msaa_with_attachments_(native_2x_msaa_with_attachments),
         native_2x_msaa_no_attachments_(native_2x_msaa_no_attachments),
         edram_fragment_shader_interlock_(edram_fragment_shader_interlock),
-        gamma_render_target_as_srgb_(gamma_render_target_as_srgb),
         draw_resolution_scale_x_(draw_resolution_scale_x),
         draw_resolution_scale_y_(draw_resolution_scale_y) {}
 
@@ -779,9 +777,6 @@ class SpirvShaderTranslator : public ShaderTranslator {
   // (there's a single return from the shader).
   bool edram_fragment_shader_interlock_;
   // Whether with host render targets, k_8_8_8_8_GAMMA render targets are
-  // represented as host sRGB (gamma applied by the host after blending).
-  bool gamma_render_target_as_srgb_;
-
   // Is currently writing the empty depth-only pixel shader, such as for depth
   // and stencil testing with fragment shader interlock.
   bool is_depth_only_fragment_shader_ = false;
